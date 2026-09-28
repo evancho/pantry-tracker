@@ -4,15 +4,13 @@ import { deleteItem, loadAll, saveItem } from './db.js';
 import {
   activeHouseholdId,
   createHousehold,
-  createInvite,
   dismissImport,
   getSessionStatus,
   importLocalPantry,
-  joinHousehold,
-  signInEmail,
+  joinFolder,
+  shareFolder,
   signInGoogle,
   signOutUser,
-  signUpEmail,
   startSession,
   switchHousehold,
   syncNow,
@@ -327,10 +325,13 @@ function renderAccount(account = getSessionStatus()) {
   ui.accountSignedOut.hidden = !account.configured || Boolean(account.user);
   ui.accountSignedIn.hidden = !account.configured || !account.user;
   const bits = [];
-  if (!account.configured) bits.push('尚未設定雲端。食材只留在這台裝置。');
+  if (!account.configured) bits.push('尚未設定 Google 登入。食材只留在這台裝置。');
   else if (!account.user) bits.push('尚未登入。不登入時，食材只留在這台裝置。');
-  else if (!account.activeName) bits.push(`已登入 ${account.user.email || account.user.displayName}。建立家庭，或用邀請碼加入。`);
-  else bits.push(`${account.user.email || account.user.displayName} · ${account.activeName} · ${roleLabel(account.role)}`);
+  else if (!account.activeName) bits.push(`已登入 ${account.user.email || account.user.displayName}。請建立或貼上雲端硬碟資料夾。`);
+  else {
+    const role = roleLabel(account.role);
+    bits.push(`${account.user.email || account.user.displayName} · ${account.activeName}${role ? ` · ${role}` : ''}`);
+  }
   if (account.syncing) bits.push('同步中…');
   else if (account.message) bits.push(account.message);
   ui.accountStatus.textContent = bits.join(' ');
@@ -345,7 +346,7 @@ function renderAccount(account = getSessionStatus()) {
   const showMigrate = Boolean(account.user && account.activeHouseholdId && account.pendingLocal > 0 && !account.importSkipped);
   ui.migrateBanner.hidden = !showMigrate;
   if (showMigrate) {
-    ui.migrateText.textContent = `這台裝置還有 ${account.pendingLocal} 項食材沒有放進「${account.activeName}」。匯入後，這個家庭的成員也看得到。`;
+    ui.migrateText.textContent = `這台裝置還有 ${account.pendingLocal} 項食材沒有放進「${account.activeName}」。匯入後會自動同步到這個 Google 雲端硬碟資料夾。`;
   }
   const label = `食材櫃 · ${APP_VERSION_LABEL}`;
   ui.versionNote.textContent = account.activeName
@@ -838,19 +839,13 @@ function bind() {
   ui.googleSignIn.addEventListener('click', () => {
     signInGoogle().catch((error) => toast(error.message));
   });
-  ui.emailSignIn.addEventListener('click', () => {
-    signInEmail(ui.authEmail.value, ui.authPassword.value).catch((error) => toast(error.message));
-  });
-  ui.emailSignUp.addEventListener('click', () => {
-    signUpEmail(ui.authEmail.value, ui.authPassword.value).catch((error) => toast(error.message));
-  });
   ui.signOutBtn.addEventListener('click', () => {
     signOutUser().catch((error) => toast(error.message));
   });
   ui.createHousehold.addEventListener('click', () => {
     createHousehold(ui.householdName.value).then(() => {
       ui.householdName.value = '';
-      toast('已建立家庭');
+      toast('已建立雲端硬碟資料夾');
     }).catch((error) => toast(error.message));
   });
   ui.householdSelect.addEventListener('change', () => {
@@ -858,17 +853,18 @@ function bind() {
     switchHousehold(ui.householdSelect.value).catch((error) => toast(error.message));
   });
   ui.joinHousehold.addEventListener('click', () => {
-    joinHousehold(ui.joinCode.value).then(() => {
-      ui.joinCode.value = '';
-      toast('已加入家庭');
+    joinFolder(ui.folderLink.value).then(() => {
+      ui.folderLink.value = '';
+      toast('已使用這個資料夾');
     }).catch((error) => toast(error.message));
   });
   ui.inviteHousehold.addEventListener('click', () => {
-    createInvite().then(({ link }) => {
-      const mail = `mailto:?subject=${encodeURIComponent('一起用食材櫃')}&body=${encodeURIComponent(`請用這個連結加入我們的食材櫃：${link}`)}`;
+    shareFolder(ui.shareEmail.value).then(({ link, shared }) => {
+      ui.shareEmail.value = '';
       ui.inviteResult.replaceChildren(
-        `把這個連結傳給家人（30 天內有效）：${link} `,
-        el('a', { href: mail }, '用電子郵件寄出'),
+        shared ? '已邀請這位家人成為編輯者。資料夾連結：' : '請把這個資料夾用「編輯者」分享給家人：',
+        ' ',
+        el('a', { href: link, target: '_blank', rel: 'noreferrer' }, link),
       );
     }).catch((error) => toast(error.message));
   });
@@ -876,7 +872,7 @@ function bind() {
     syncNow().then(() => toast(getSessionStatus().message || '已同步'));
   });
   ui.migrateYes.addEventListener('click', () => {
-    importLocalPantry().then(() => toast('已匯入這個家庭')).catch((error) => toast(error.message));
+    importLocalPantry().then(() => toast('已匯入這個資料夾')).catch((error) => toast(error.message));
   });
   ui.migrateNo.addEventListener('click', () => dismissImport());
 }
@@ -947,15 +943,12 @@ function cacheElements() {
     accountSignedOut: 'account-signed-out',
     accountSignedIn: 'account-signed-in',
     googleSignIn: 'google-sign-in',
-    authEmail: 'auth-email',
-    authPassword: 'auth-password',
-    emailSignIn: 'email-sign-in',
-    emailSignUp: 'email-sign-up',
     householdSelect: 'household-select',
     householdName: 'household-name',
     createHousehold: 'create-household',
-    joinCode: 'join-code',
+    folderLink: 'folder-link',
     joinHousehold: 'join-household',
+    shareEmail: 'share-email',
     inviteHousehold: 'invite-household',
     inviteResult: 'invite-result',
     syncNow: 'sync-now',

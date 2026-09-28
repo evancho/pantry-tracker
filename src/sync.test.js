@@ -1,12 +1,8 @@
 import { describe, expect, it } from 'vitest';
 import {
-  createInviteCode,
-  inviteLink,
   lastWriteWins,
   mergeHouseholdItems,
   migrationCandidates,
-  normalizeInviteCode,
-  parseJoinCode,
 } from './sync.js';
 
 describe('last-write-wins merge', () => {
@@ -53,17 +49,7 @@ describe('last-write-wins merge', () => {
   });
 });
 
-describe('invites and migration', () => {
-  it('builds an 8-character code and a join link', () => {
-    const code = createInviteCode(() => 0);
-    expect(code).toBe('AAAAAAAA');
-    expect(normalizeInviteCode(' ab23cd4 ')).toBe('');
-    expect(normalizeInviteCode('ab23cd4e')).toBe('AB23CD4E');
-    expect(parseJoinCode('?join=ab23cd4e')).toBe('AB23CD4E');
-    expect(inviteLink('https://evancho.github.io', '/pantry-tracker/', 'AB23CD4E'))
-      .toBe('https://evancho.github.io/pantry-tracker/?join=AB23CD4E');
-  });
-
+describe('migration', () => {
   it('moves only this-device items into the household', () => {
     const moved = migrationCandidates([
       { id: 'local', name: '豆腐', updatedAt: 3 },

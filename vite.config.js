@@ -44,7 +44,7 @@ export default defineConfig({
       manifest: {
         name: '食材櫃',
         short_name: '食材櫃',
-        description: '家用食材與保存期限。可在這台裝置使用，登入後也能和家人同步。',
+        description: '家用食材與保存期限。可在這台裝置使用，登入後也能和家人同步到 Google 雲端硬碟。',
         lang: 'zh-TW',
         dir: 'ltr',
         id: './',
