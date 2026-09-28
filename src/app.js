@@ -338,7 +338,7 @@ function paintSyncStatus(account = getSessionStatus()) {
     if (!node) continue;
     node.textContent = state.label;
     node.dataset.state = state.key;
-    node.title = account.message || state.label;
+    node.title = syncDetailMessage(account.message) || state.label;
   }
 }
 

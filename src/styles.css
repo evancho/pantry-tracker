@@ -932,6 +932,28 @@ dialog.sheet::backdrop { background: rgba(28, 25, 21, 0.48); }
   gap: 12px;
 }
 
+.head-actions {
+  display: flex;
+  flex: 0 0 auto;
+  align-items: center;
+  gap: 2px;
+}
+
+.head-btn {
+  min-height: 44px;
+  padding: 0 12px;
+  border: 0;
+  border-radius: 12px;
+  background: transparent;
+  color: var(--green-deep);
+  font-weight: 750;
+  white-space: nowrap;
+}
+
+.head-btn:active {
+  background: rgba(29, 92, 66, 0.1);
+}
+
 .switch {
   flex: 0 0 auto;
   width: 64px;
