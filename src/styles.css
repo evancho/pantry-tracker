@@ -608,6 +608,10 @@ main.wrap {
   box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.24), 0 12px 24px rgba(29, 92, 66, 0.32);
 }
 
+body.modal-open {
+  overflow: hidden;
+}
+
 body.modal-open .fab { visibility: hidden; }
 
 .footer {
@@ -822,13 +826,25 @@ dialog.sheet::backdrop { background: rgba(28, 25, 21, 0.48); }
 }
 
 #more-dialog {
-  display: flex;
   flex-direction: column;
   overflow: hidden;
   background:
     radial-gradient(720px 280px at -16% -10%, rgba(29, 92, 66, 0.1), transparent 60%),
     radial-gradient(520px 220px at 110% 0%, rgba(224, 160, 74, 0.14), transparent 55%),
     var(--bg);
+}
+
+#more-dialog[open] {
+  display: flex;
+  position: fixed;
+  z-index: 40;
+  inset: 0;
+  width: 100%;
+  max-width: none;
+  height: 100dvh;
+  max-height: none;
+  margin: 0;
+  border-radius: 0;
 }
 
 #more-dialog .sheet-head {
@@ -939,8 +955,13 @@ dialog.sheet::backdrop { background: rgba(28, 25, 21, 0.48); }
     border-radius: 22px;
   }
 
-  #more-dialog {
+  #more-dialog[open] {
+    inset: 0;
+    width: min(520px, calc(100% - 32px));
     height: min(920px, calc(100dvh - 32px));
+    max-height: min(920px, calc(100dvh - 32px));
+    margin: auto;
+    border-radius: 22px;
   }
 
   #editor form { max-height: min(920px, calc(100dvh - 32px)); }
