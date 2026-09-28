@@ -4,7 +4,7 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
     <meta name="theme-color" content="#1d5c42" />
-    <meta name="description" content="食材櫃：在這台裝置上記錄家中食材、保存期限與存放位置。" />
+    <meta name="description" content="食材櫃：在這台裝置上記錄家中食材、保存期限與存放位置。登入後可同步到 Google 雲端硬碟。" />
     <meta name="mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-status-bar-style" content="default" />
@@ -17,9 +17,9 @@
     <div class="chrome">
       <div id="migrate-banner" class="migrate-banner" hidden role="status">
         <div class="update-banner-inner wrap">
-          <p id="migrate-text">這台裝置有尚未加入家庭的食材。</p>
+          <p id="migrate-text">這台裝置有尚未放進雲端硬碟資料夾的食材。</p>
           <div class="migrate-actions">
-            <button type="button" id="migrate-yes">匯入家庭</button>
+            <button type="button" id="migrate-yes">匯入資料夾</button>
             <button type="button" id="migrate-no">先不要</button>
           </div>
         </div>
@@ -168,43 +168,33 @@
         <section class="more-block">
           <h3>家庭與同步</h3>
           <p id="account-status" class="hint">尚未登入。不登入時，食材只留在這台裝置。</p>
-          <p id="cloud-setup" class="hint" hidden>這個網站還沒有雲端設定。建置時放入 Firebase 設定後，才能登入並和家人共用。沒有設定時，食材仍只留在這台裝置。</p>
+          <p id="cloud-setup" class="hint" hidden>這個網站還沒有 Google 登入設定。建置時放入 OAuth client id 後，食材與照片才會自動同步到 Google 雲端硬碟。沒有設定時，食材仍只留在這台裝置。</p>
           <div id="account-signed-out">
-            <button type="button" id="google-sign-in" class="btn">使用 Google 登入</button>
-            <label class="field">
-              <span>電子郵件</span>
-              <input id="auth-email" type="email" autocomplete="username" inputmode="email" placeholder="name@example.com" />
-            </label>
-            <label class="field">
-              <span>密碼</span>
-              <input id="auth-password" type="password" autocomplete="current-password" placeholder="至少 6 個字元" />
-            </label>
-            <div class="photo-actions">
-              <button type="button" id="email-sign-in" class="btn btn-primary">登入</button>
-              <button type="button" id="email-sign-up" class="btn">註冊</button>
-            </div>
+            <button type="button" id="google-sign-in" class="btn btn-primary">使用 Google 登入</button>
           </div>
           <div id="account-signed-in" hidden>
             <label class="field">
-              <span>目前家庭</span>
+              <span>目前資料夾</span>
               <select id="household-select"></select>
             </label>
             <label class="field">
-              <span>新家庭名稱</span>
-              <input id="household-name" maxlength="40" placeholder="例如：家裡" />
+              <span>新資料夾名稱</span>
+              <input id="household-name" maxlength="40" placeholder="例如：家裡的食材櫃" />
             </label>
             <div class="photo-actions">
-              <button type="button" id="create-household" class="btn btn-primary">建立家庭</button>
+              <button type="button" id="create-household" class="btn btn-primary">建立雲端硬碟資料夾</button>
               <button type="button" id="sync-now" class="btn">立即同步</button>
             </div>
             <label class="field">
-              <span>邀請碼</span>
-              <input id="join-code" maxlength="8" autocapitalize="characters" autocomplete="off" placeholder="8 碼邀請碼" />
+              <span>共用資料夾連結</span>
+              <input id="folder-link" autocomplete="off" placeholder="貼上家人分享的資料夾連結" />
             </label>
-            <div class="photo-actions">
-              <button type="button" id="join-household" class="btn">加入家庭</button>
-              <button type="button" id="invite-household" class="btn">產生邀請連結</button>
-            </div>
+            <button type="button" id="join-household" class="btn">使用這個資料夾</button>
+            <label class="field">
+              <span>家人的 Google 帳號</span>
+              <input id="share-email" type="email" autocomplete="off" inputmode="email" placeholder="name@gmail.com" />
+            </label>
+            <button type="button" id="invite-household" class="btn">分享為編輯者</button>
             <p id="invite-result" class="hint invite-link"></p>
             <button type="button" id="sign-out" class="btn btn-quiet">登出</button>
           </div>
@@ -217,7 +207,7 @@
         </section>
         <section class="more-block">
           <h3>備份</h3>
-          <p>匯出的 JSON 含名稱、期限、存放位置與照片，可以再匯回這台或其他瀏覽器。這份檔案不會自動上傳；和家人共用要另外登入家庭。</p>
+          <p>匯出的 JSON 是額外備份。和家人共用時，清單與照片會自動同步到 Google 雲端硬碟，不必靠這份檔案傳來傳去。</p>
           <div class="photo-actions">
             <button type="button" id="export-btn" class="btn">匯出備份</button>
             <button type="button" id="import-btn" class="btn">匯入備份</button>

@@ -1,6 +1,17 @@
 /** Newest release first. Version numbers match package.json, without the build datecode. */
 export const CHANGELOG = Object.freeze([
   {
+    version: '2.1.0',
+    date: '2026-09-28',
+    summary: '改用 Google 雲端硬碟和家人自動同步。',
+    changes: Object.freeze([
+      '使用 Google 帳號登入。沒有設定 OAuth client id 時，食材仍只留在這台裝置，建置不會失敗。',
+      '可在雲端硬碟建立食材櫃資料夾，或貼上家人已分享的資料夾連結。',
+      '把資料夾分享為「編輯者」後，家人各自的 Google 帳號會自動同步清單與照片。',
+      '離線仍可看、可改；恢復連線後以較新的修改為準。不再使用 Firebase。',
+    ]),
+  },
+  {
     version: '2.0.0',
     date: '2026-09-28',
     summary: '可以登入，並和家人共用同一個食材櫃。',

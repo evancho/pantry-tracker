@@ -1,8 +1,8 @@
 {
   "name": "pantry-tracker",
-  "version": "2.0.0",
+  "version": "2.1.0",
   "private": true,
-  "description": "食材櫃 — offline-first Traditional Chinese pantry tracker PWA with optional household sync",
+  "description": "食材櫃 — offline-first Traditional Chinese pantry tracker PWA with optional Google Drive household sync",
   "type": "module",
   "scripts": {
     "predev": "node scripts/copy-ocr-runtime.mjs",
@@ -16,7 +16,6 @@
     "ocr:smoke": "node scripts/ocr-smoke.mjs"
   },
   "dependencies": {
-    "firebase": "^11.10.0",
     "tesseract.js": "^7.0.0"
   },
   "devDependencies": {

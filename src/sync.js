@@ -1,5 +1,3 @@
-const INVITE_ALPHABET = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
-
 export function lastWriteWins(local, remote) {
   const localAt = Number(local?.updatedAt) || 0;
   const remoteAt = Number(remote?.updatedAt) || 0;
@@ -61,28 +59,19 @@ export function mergeHouseholdItems(localItems, remoteItems) {
   return { items, pushIds, dropIds };
 }
 
-export function createInviteCode(random = Math.random) {
-  let code = '';
-  for (let i = 0; i < 8; i += 1) {
-    code += INVITE_ALPHABET[Math.floor(random() * INVITE_ALPHABET.length)];
-  }
-  return code;
+export function parseDriveFolderId(value) {
+  const text = String(value || '').trim();
+  if (!text) return '';
+  const folder = text.match(/\/folders\/([a-zA-Z0-9_-]+)/);
+  if (folder) return folder[1];
+  const query = text.match(/[?&]id=([a-zA-Z0-9_-]+)/);
+  if (query) return query[1];
+  if (/^[a-zA-Z0-9_-]{10,}$/.test(text)) return text;
+  return '';
 }
 
-export function normalizeInviteCode(value) {
-  const code = String(value || '').trim().toUpperCase();
-  return /^[A-Z2-9]{8}$/.test(code) ? code : '';
-}
-
-export function inviteLink(origin, base, code) {
-  const url = new URL(base || '/', origin);
-  url.searchParams.set('join', code);
-  return url.href;
-}
-
-export function parseJoinCode(search) {
-  const params = new URLSearchParams(String(search || '').replace(/^\?/, ''));
-  return normalizeInviteCode(params.get('join'));
+export function driveFolderLink(folderId) {
+  return `https://drive.google.com/drive/folders/${folderId}`;
 }
 
 export function migrationCandidates(localItems, householdId, now) {
@@ -96,5 +85,7 @@ export function migrationCandidates(localItems, householdId, now) {
 }
 
 export function roleLabel(role) {
-  return role === 'admin' ? '管理員' : '成員';
+  if (role === 'reader') return '只能檢視';
+  if (role === 'writer' || role === 'owner') return '可編輯';
+  return '';
 }

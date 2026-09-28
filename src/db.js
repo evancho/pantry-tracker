@@ -53,6 +53,7 @@ function toStoredItem(item) {
     leadDays: item.leadDays,
     photoId: item.photoId || null,
     photoPath: item.photoPath || null,
+    remoteFileId: item.remoteFileId || null,
     householdId: item.householdId || null,
     createdAt: item.createdAt,
     updatedAt: item.updatedAt,
