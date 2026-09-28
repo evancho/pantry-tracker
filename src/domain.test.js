@@ -110,4 +110,21 @@ describe('filter and sort', () => {
       '泡麵',
     ]);
   });
+
+  it('filters by ingredient name while sorting the matches', () => {
+    expect(filterAndSort(items, { query: '豆', today }).map((row) => row.name)).toEqual(['豆腐']);
+    expect(filterAndSort(items, { query: '  泡麵  ', today }).map((row) => row.name)).toEqual(['泡麵']);
+    expect(filterAndSort(items, { query: 'MILK', today, sort: 'name' })).toEqual([]);
+    const english = [
+      item({ name: 'Milk', expiry: '2026-10-02', createdAt: 1 }),
+      item({ name: '牛奶', expiry: '2026-10-01', createdAt: 2 }),
+    ];
+    expect(filterAndSort(english, { query: 'milk', sort: 'expiry-asc', today }).map((row) => row.name)).toEqual(['Milk']);
+    expect(filterAndSort(items, { query: '   ', sort: 'name', today }).map((row) => row.name)).toEqual([
+      '冷凍水餃',
+      '豆腐',
+      '泡麵',
+      '過期醬',
+    ]);
+  });
 });

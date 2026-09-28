@@ -1,15 +1,21 @@
 import './styles.css';
+import { mountAppUpdate } from './app-update.js';
 import { startApp } from './app.js';
 import { registerSW } from 'virtual:pwa-register';
 
-const updateSW = registerSW({
+let updateSW = async () => {};
+
+const updates = mountAppUpdate(document, {
+  apply: () => updateSW(true),
+});
+
+updateSW = registerSW({
   immediate: true,
   onNeedRefresh() {
-    const banner = document.getElementById('update-banner');
-    banner.hidden = false;
-    document.getElementById('reload-btn').addEventListener('click', () => {
-      updateSW(true);
-    }, { once: true });
+    updates.notifyNeedRefresh();
+  },
+  onRegisteredSW(_swUrl, registration) {
+    updates.watch(registration);
   },
   onOfflineReady() {},
 });

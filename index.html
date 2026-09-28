@@ -14,11 +14,13 @@
     <title>食材櫃</title>
   </head>
   <body>
-    <div id="update-banner" class="update-banner" hidden>
-      <button type="button" id="reload-btn">有新版本，重新載入</button>
-    </div>
-
     <div class="chrome">
+      <div id="update-banner" class="update-banner" hidden role="status" aria-live="assertive">
+        <div class="update-banner-inner wrap">
+          <p id="update-banner-text">有新版本，請立即更新</p>
+          <button type="button" id="reload-btn">立即更新</button>
+        </div>
+      </div>
       <header class="topbar wrap">
         <div class="brand">
           <span class="brand-mark" aria-hidden="true">櫃</span>
@@ -39,14 +41,13 @@
     </div>
 
     <main id="view-pantry" class="wrap">
-      <section class="filters" aria-label="篩選與排序">
-        <div>
-          <p class="filter-label" id="area-label">存放位置</p>
-          <div id="area-filters" class="chip-row" role="group" aria-labelledby="area-label"></div>
-        </div>
-        <div>
-          <p class="filter-label" id="status-label">狀態</p>
-          <div id="status-filters" class="chip-row" role="group" aria-labelledby="status-label"></div>
+      <section class="filters" aria-label="搜尋與排序">
+        <div class="search-field">
+          <label for="name-filter">搜尋名稱</label>
+          <div class="search-row">
+            <input id="name-filter" type="search" placeholder="輸入食材名稱" autocomplete="off" autocorrect="off" spellcheck="false" enterkeyhint="search" aria-controls="list" />
+            <button type="button" id="name-filter-clear" class="text-btn" hidden>清除</button>
+          </div>
         </div>
         <label class="sort-field">
           <span>排序</span>
@@ -61,7 +62,18 @@
       </section>
       <section id="no-match" class="empty" hidden>
         <h2>沒有符合的食材</h2>
-        <p>試著把狀態或存放位置改回「全部」。</p>
+        <p id="no-match-copy">沒有名稱符合這個搜尋的食材。</p>
+      </section>
+    </main>
+
+    <main id="view-changelog" class="wrap" hidden>
+      <section class="changelog">
+        <div class="changelog-head">
+          <button type="button" id="changelog-back" class="text-btn">返回</button>
+          <h2>更新紀錄</h2>
+        </div>
+        <p id="changelog-current" class="hint"></p>
+        <div id="changelog-list"></div>
       </section>
     </main>
 
@@ -74,7 +86,9 @@
     </main>
 
     <button type="button" id="add-btn" class="fab">＋ 新增</button>
-    <footer class="footer wrap">食材櫃 · 1.0.0</footer>
+    <footer class="footer wrap">
+      <button type="button" id="version-btn" class="version-link">食材櫃 · __APP_VERSION_LABEL__</button>
+    </footer>
 
     <dialog id="editor" class="sheet" aria-labelledby="editor-title">
       <form id="editor-form">
@@ -154,7 +168,22 @@
           </div>
           <input id="import-input" type="file" accept="application/json,.json" hidden />
         </section>
-        <p class="hint version-note">食材櫃 1.0.0 · 資料只存在這台裝置</p>
+        <section class="more-block">
+          <h3>更新紀錄</h3>
+          <p>查看每個版本改了什麼。版本號含建置日期碼，方便對照這一次部署。</p>
+          <button type="button" id="open-changelog" class="btn">打開更新紀錄</button>
+        </section>
+        <p id="version-note" class="hint version-note">食材櫃 __APP_VERSION_LABEL__ · 資料只存在這台裝置</p>
+      </div>
+    </dialog>
+
+    <dialog id="update-prompt" class="update-dialog" aria-labelledby="update-title">
+      <p class="update-kicker">食材櫃</p>
+      <h2 id="update-title">有新版本</h2>
+      <p id="update-copy">食材櫃已有新版本。請按「立即更新」重新載入，才能使用最新畫面與功能。</p>
+      <div class="update-actions">
+        <button type="button" id="update-now" class="btn btn-primary">立即更新</button>
+        <button type="button" id="update-later" class="btn btn-quiet">稍後再說</button>
       </div>
     </dialog>
 

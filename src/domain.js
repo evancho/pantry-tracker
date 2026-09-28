@@ -106,10 +106,18 @@ export function summarize(items, today) {
   return counts;
 }
 
-export function filterAndSort(items, { area = '全部', status = '全部', sort = 'expiry-asc', today }) {
+export function filterAndSort(items, {
+  area = '全部',
+  status = '全部',
+  query = '',
+  sort = 'expiry-asc',
+  today,
+} = {}) {
+  const needle = String(query || '').trim().toLocaleLowerCase('zh-Hant');
   let list = items.filter((item) => {
     if (area !== '全部' && item.area !== area) return false;
     if (status !== '全部' && itemStatus(item, today) !== status) return false;
+    if (needle && !String(item.name || '').toLocaleLowerCase('zh-Hant').includes(needle)) return false;
     return true;
   });
 
