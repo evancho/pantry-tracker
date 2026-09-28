@@ -1,0 +1,55 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    function signedIn() {
+      return request.auth != null;
+    }
+    function memberPath(hid) {
+      return /databases/$(database)/documents/households/$(hid)/members/$(request.auth.uid);
+    }
+    function isMember(hid) {
+      return signedIn() && exists(memberPath(hid));
+    }
+    function isAdmin(hid) {
+      return isMember(hid) && get(memberPath(hid)).data.role == 'admin';
+    }
+
+    match /users/{uid} {
+      allow read, write: if signedIn() && request.auth.uid == uid;
+    }
+
+    match /households/{hid} {
+      allow create: if signedIn() && request.resource.data.createdBy == request.auth.uid;
+      allow read: if isMember(hid);
+      allow update, delete: if isAdmin(hid);
+
+      match /members/{uid} {
+        allow read: if isMember(hid);
+        allow create: if signedIn() && request.auth.uid == uid && (
+          (request.resource.data.role == 'admin'
+            && get(/databases/$(database)/documents/households/$(hid)).data.createdBy == request.auth.uid)
+          || (request.resource.data.role == 'member'
+            && request.resource.data.inviteCode is string
+            && get(/databases/$(database)/documents/invites/$(request.resource.data.inviteCode)).data.householdId == hid
+            && get(/databases/$(database)/documents/invites/$(request.resource.data.inviteCode)).data.expiresAt > request.time.toMillis())
+        );
+        allow update: if isAdmin(hid)
+          || (signedIn() && request.auth.uid == uid && request.resource.data.role == resource.data.role);
+        allow delete: if isAdmin(hid) || (signedIn() && request.auth.uid == uid);
+      }
+
+      match /ingredients/{itemId} {
+        allow read, write: if isMember(hid);
+      }
+    }
+
+    match /invites/{code} {
+      allow get: if signedIn();
+      allow list: if false;
+      allow create: if signedIn()
+        && request.resource.data.code == code
+        && isAdmin(request.resource.data.householdId);
+      allow delete: if signedIn() && isAdmin(resource.data.householdId);
+    }
+  }
+}

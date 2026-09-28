@@ -2,6 +2,23 @@ import { buildBackup, parseBackup } from './backup.js';
 import { CHANGELOG } from './changelog.js';
 import { deleteItem, loadAll, saveItem } from './db.js';
 import {
+  activeHouseholdId,
+  createHousehold,
+  createInvite,
+  dismissImport,
+  getSessionStatus,
+  importLocalPantry,
+  joinHousehold,
+  signInEmail,
+  signInGoogle,
+  signOutUser,
+  signUpEmail,
+  startSession,
+  switchHousehold,
+  syncNow,
+} from './session.js';
+import { roleLabel } from './sync.js';
+import {
   AREAS,
   SORTS,
   countdownLabel,
@@ -260,7 +277,13 @@ function showEmpty(title, copy) {
 function render() {
   const today = todayISO();
   const counts = summarize(state.items, today);
-  ui.summary.textContent = state.error ? '無法讀取資料' : summaryText(counts);
+  const account = getSessionStatus();
+  const countsText = summaryText(counts);
+  if (state.error) ui.summary.textContent = '無法讀取資料';
+  else if (account.activeName) {
+    ui.summary.textContent = counts.total ? `${account.activeName} · ${countsText}` : `${account.activeName} · 還沒有食材`;
+  } else ui.summary.textContent = countsText;
+  renderAccount(account);
   renderControls();
   ui.notifyBtn.classList.toggle('has-due', counts['即將到期'] + counts['已過期'] > 0);
 
@@ -299,8 +322,39 @@ function render() {
   void updateAppBadge(counts['即將到期'] + counts['已過期']);
 }
 
+function renderAccount(account = getSessionStatus()) {
+  ui.cloudSetup.hidden = account.configured;
+  ui.accountSignedOut.hidden = !account.configured || Boolean(account.user);
+  ui.accountSignedIn.hidden = !account.configured || !account.user;
+  const bits = [];
+  if (!account.configured) bits.push('尚未設定雲端。食材只留在這台裝置。');
+  else if (!account.user) bits.push('尚未登入。不登入時，食材只留在這台裝置。');
+  else if (!account.activeName) bits.push(`已登入 ${account.user.email || account.user.displayName}。建立家庭，或用邀請碼加入。`);
+  else bits.push(`${account.user.email || account.user.displayName} · ${account.activeName} · ${roleLabel(account.role)}`);
+  if (account.syncing) bits.push('同步中…');
+  else if (account.message) bits.push(account.message);
+  ui.accountStatus.textContent = bits.join(' ');
+  const signature = `${account.households.map((row) => `${row.id}:${row.role}:${row.name}`).join('|')}:${account.activeHouseholdId || ''}`;
+  if (ui.householdSelect.dataset.signature !== signature) {
+    ui.householdSelect.dataset.signature = signature;
+    ui.householdSelect.replaceChildren(...account.households.map((row) => (
+      el('option', { value: row.id }, `${row.name}（${roleLabel(row.role)}）`)
+    )));
+    if (account.activeHouseholdId) ui.householdSelect.value = account.activeHouseholdId;
+  }
+  const showMigrate = Boolean(account.user && account.activeHouseholdId && account.pendingLocal > 0 && !account.importSkipped);
+  ui.migrateBanner.hidden = !showMigrate;
+  if (showMigrate) {
+    ui.migrateText.textContent = `這台裝置還有 ${account.pendingLocal} 項食材沒有放進「${account.activeName}」。匯入後，這個家庭的成員也看得到。`;
+  }
+  const label = `食材櫃 · ${APP_VERSION_LABEL}`;
+  ui.versionNote.textContent = account.activeName
+    ? `${label} · 家庭「${account.activeName}」`
+    : `${label} · 資料只存在這台裝置`;
+}
+
 async function reload() {
-  state.items = await loadAll();
+  state.items = await loadAll(activeHouseholdId());
   state.ready = true;
   state.error = '';
   syncUrls(state.items);
@@ -472,6 +526,7 @@ async function saveEditor(event) {
     area: ui.area.value,
     leadDays: normalizeLeadDays(ui.lead.value),
     photoId: draft.photoRemoved ? null : draft.photoId,
+    householdId: activeHouseholdId(),
     createdAt: draft.createdAt || now,
     updatedAt: now,
   };
@@ -484,6 +539,7 @@ async function saveEditor(event) {
     await saveItem(record, photoArg);
     closeEditor();
     await reload();
+    syncNow().catch(() => {});
     toast('已儲存');
   } catch (error) {
     console.error(error);
@@ -523,8 +579,9 @@ async function removeItem(item) {
   const ok = await ask(`確定要刪除「${item.name}」嗎？刪除後無法復原。`, '刪除', '刪除食材');
   if (!ok) return;
   try {
-    await deleteItem(item.id);
+    await deleteItem(item.id, { updatedAt: Date.now() });
     await reload();
+    syncNow().catch(() => {});
     toast('已刪除');
   } catch (error) {
     console.error(error);
@@ -549,7 +606,7 @@ async function dataUrlToBlob(dataUrl) {
 
 async function exportBackup() {
   try {
-    const items = await loadAll();
+    const items = await loadAll(activeHouseholdId());
     const payload = buildBackup(await Promise.all(items.map(async (item) => ({
       ...item,
       photo: item.photoBlob ? await blobToDataUrl(item.photoBlob) : null,
@@ -600,12 +657,14 @@ async function importFile(file) {
         area: row.area,
         leadDays: row.leadDays,
         photoId: null,
+        householdId: activeHouseholdId(),
         createdAt: row.createdAt || Date.now(),
         updatedAt: Date.now(),
       }, blob);
       saved += 1;
     }
     await reload();
+    syncNow().catch(() => {});
     toast(parsed.skipped ? `已匯入 ${saved} 項，略過 ${parsed.skipped} 項。` : `已匯入 ${saved} 項。`);
     return;
   } catch (error) {
@@ -775,6 +834,51 @@ function bind() {
     ui.importInput.value = '';
     importFile(file);
   });
+
+  ui.googleSignIn.addEventListener('click', () => {
+    signInGoogle().catch((error) => toast(error.message));
+  });
+  ui.emailSignIn.addEventListener('click', () => {
+    signInEmail(ui.authEmail.value, ui.authPassword.value).catch((error) => toast(error.message));
+  });
+  ui.emailSignUp.addEventListener('click', () => {
+    signUpEmail(ui.authEmail.value, ui.authPassword.value).catch((error) => toast(error.message));
+  });
+  ui.signOutBtn.addEventListener('click', () => {
+    signOutUser().catch((error) => toast(error.message));
+  });
+  ui.createHousehold.addEventListener('click', () => {
+    createHousehold(ui.householdName.value).then(() => {
+      ui.householdName.value = '';
+      toast('已建立家庭');
+    }).catch((error) => toast(error.message));
+  });
+  ui.householdSelect.addEventListener('change', () => {
+    if (!ui.householdSelect.value) return;
+    switchHousehold(ui.householdSelect.value).catch((error) => toast(error.message));
+  });
+  ui.joinHousehold.addEventListener('click', () => {
+    joinHousehold(ui.joinCode.value).then(() => {
+      ui.joinCode.value = '';
+      toast('已加入家庭');
+    }).catch((error) => toast(error.message));
+  });
+  ui.inviteHousehold.addEventListener('click', () => {
+    createInvite().then(({ link }) => {
+      const mail = `mailto:?subject=${encodeURIComponent('一起用食材櫃')}&body=${encodeURIComponent(`請用這個連結加入我們的食材櫃：${link}`)}`;
+      ui.inviteResult.replaceChildren(
+        `把這個連結傳給家人（30 天內有效）：${link} `,
+        el('a', { href: mail }, '用電子郵件寄出'),
+      );
+    }).catch((error) => toast(error.message));
+  });
+  ui.syncNow.addEventListener('click', () => {
+    syncNow().then(() => toast(getSessionStatus().message || '已同步'));
+  });
+  ui.migrateYes.addEventListener('click', () => {
+    importLocalPantry().then(() => toast('已匯入這個家庭')).catch((error) => toast(error.message));
+  });
+  ui.migrateNo.addEventListener('click', () => dismissImport());
 }
 
 function cacheElements() {
@@ -838,6 +942,28 @@ function cacheElements() {
     importBtn: 'import-btn',
     importInput: 'import-input',
     toast: 'toast',
+    cloudSetup: 'cloud-setup',
+    accountStatus: 'account-status',
+    accountSignedOut: 'account-signed-out',
+    accountSignedIn: 'account-signed-in',
+    googleSignIn: 'google-sign-in',
+    authEmail: 'auth-email',
+    authPassword: 'auth-password',
+    emailSignIn: 'email-sign-in',
+    emailSignUp: 'email-sign-up',
+    householdSelect: 'household-select',
+    householdName: 'household-name',
+    createHousehold: 'create-household',
+    joinCode: 'join-code',
+    joinHousehold: 'join-household',
+    inviteHousehold: 'invite-household',
+    inviteResult: 'invite-result',
+    syncNow: 'sync-now',
+    signOutBtn: 'sign-out',
+    migrateBanner: 'migrate-banner',
+    migrateText: 'migrate-text',
+    migrateYes: 'migrate-yes',
+    migrateNo: 'migrate-no',
   };
   for (const [key, id] of Object.entries(ids)) ui[key] = document.getElementById(id);
 }
@@ -849,6 +975,14 @@ export function startApp() {
   applyVersion();
   renderChangelog();
   setView('pantry');
+  startSession({
+    onStatus: () => renderAccount(),
+    onSynced: () => {
+      reload().catch((error) => {
+        console.error(error);
+      });
+    },
+  });
   render();
   reload().catch((error) => {
     console.error(error);

@@ -1,6 +1,17 @@
 /** Newest release first. Version numbers match package.json, without the build datecode. */
 export const CHANGELOG = Object.freeze([
   {
+    version: '2.0.0',
+    date: '2026-09-28',
+    summary: '可以登入，並和家人共用同一個食材櫃。',
+    changes: Object.freeze([
+      '可用 Google 或電子郵件登入。沒有設定雲端時，仍只把食材留在這台裝置。',
+      '可建立家庭、用邀請連結或邀請碼加入，一個人可以屬於多個家庭並切換。',
+      '家庭食材與照片會在有網路時同步；離線仍可看、可改，恢復連線後以較新的修改為準。',
+      '第一次登入家庭時，可以把這台裝置上還沒上傳的食材匯入。',
+    ]),
+  },
+  {
     version: '1.2.1',
     date: '2026-09-28',
     summary: '搜尋、清單模式與排序收成較矮的工具列，已過期更醒目。',

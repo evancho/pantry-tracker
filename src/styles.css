@@ -58,9 +58,28 @@ button { cursor: pointer; }
   padding-top: env(safe-area-inset-top);
 }
 
-.update-banner {
+.update-banner,
+.migrate-banner {
   background: #8a4e10;
   color: white;
+}
+
+.migrate-banner { background: #1d5c42; }
+
+.migrate-actions {
+  display: flex;
+  gap: 8px;
+}
+
+.migrate-actions button {
+  flex: 0 0 auto;
+  min-height: 44px;
+  border: 0;
+  border-radius: 999px;
+  padding: 0 14px;
+  background: white;
+  color: #143d2d;
+  font-weight: 800;
 }
 
 .update-banner-inner {
@@ -697,6 +716,9 @@ dialog.sheet::backdrop { background: rgba(28, 25, 21, 0.48); }
 .field input, .field select { font-weight: 500; }
 
 .hint { margin: 0; color: var(--muted); font-size: 0.92rem; font-weight: 500; }
+
+.invite-link { overflow-wrap: anywhere; }
+.invite-link a { color: var(--green); font-weight: 800; }
 
 .confirm-text { margin: 0; padding: 12px 16px 4px; }
 

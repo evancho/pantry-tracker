@@ -1,0 +1,16 @@
+rules_version = '2';
+service firebase.storage {
+  match /b/{bucket}/o {
+    function isMember(hid) {
+      return request.auth != null
+        && firestore.exists(/databases/(default)/documents/households/$(hid)/members/$(request.auth.uid));
+    }
+    match /households/{hid}/{fileName} {
+      allow read: if isMember(hid);
+      allow delete: if isMember(hid);
+      allow create, update: if isMember(hid)
+        && request.resource.size < 5 * 1024 * 1024
+        && request.resource.contentType.matches('image/.*');
+    }
+  }
+}
