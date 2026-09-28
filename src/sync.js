@@ -74,6 +74,15 @@ export function driveFolderLink(folderId) {
   return `https://drive.google.com/drive/folders/${folderId}`;
 }
 
+export function scopeForList({ activeHouseholdId } = {}) {
+  return activeHouseholdId || null;
+}
+
+export function itemsInScope(items, scope) {
+  const target = scope || null;
+  return (items || []).filter((item) => item && !item.deletedAt && (item.householdId || null) === target);
+}
+
 export function migrationCandidates(localItems, householdId, now) {
   return localItems
     .filter((item) => item && !item.householdId && !item.deletedAt)

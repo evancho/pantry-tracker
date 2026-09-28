@@ -325,8 +325,13 @@ function renderAccount(account = getSessionStatus()) {
   ui.accountSignedOut.hidden = !account.configured || Boolean(account.user);
   ui.accountSignedIn.hidden = !account.configured || !account.user;
   const bits = [];
-  if (!account.configured) bits.push('尚未設定 Google 登入。食材只留在這台裝置。');
-  else if (!account.user) bits.push('尚未登入。不登入時，食材只留在這台裝置。');
+  if (!account.configured) {
+    bits.push(account.activeName
+      ? `尚未設定 Google 登入。這台裝置仍顯示「${account.activeName}」。`
+      : '尚未設定 Google 登入。食材只留在這台裝置。');
+  } else if (!account.user && account.activeName) {
+    bits.push(`尚未登入。這台裝置仍顯示「${account.activeName}」。登入後會再同步。`);
+  } else if (!account.user) bits.push('尚未登入。不登入時，食材只留在這台裝置。');
   else if (!account.activeName) bits.push(`已登入 ${account.user.email || account.user.displayName}。請建立或貼上雲端硬碟資料夾。`);
   else {
     const role = roleLabel(account.role);

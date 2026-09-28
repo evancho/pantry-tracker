@@ -1,6 +1,16 @@
 /** Newest release first. Version numbers match package.json, without the build datecode. */
 export const CHANGELOG = Object.freeze([
   {
+    version: '2.1.1',
+    date: '2026-09-28',
+    summary: '關掉再開，已同步到這台裝置的食材仍會出現。',
+    changes: Object.freeze([
+      '尚未登入、或 Google 登入還沒恢復時，清單仍顯示上次使用的雲端硬碟資料夾。',
+      '離線可以查看與修改；登入並恢復連線後才會再同步。',
+      '還沒放進資料夾的食材仍留在這台裝置，登入後可以選擇匯入。',
+    ]),
+  },
+  {
     version: '2.1.0',
     date: '2026-09-28',
     summary: '改用 Google 雲端硬碟和家人自動同步。',
