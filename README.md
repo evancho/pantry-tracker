@@ -2,7 +2,7 @@
 
 家用食材與保存期限追蹤。打開網頁或加到 iPhone 主畫面就能用。不登入時，名稱、照片、到期日與存放位置只存在這台裝置。登入 Google 並選定共用的雲端硬碟資料夾後，可以和家人自動同步同一個食材櫃；離線時仍可修改，恢復網路後再同步。
 
-介面上的名字是「食材櫃」。套件與安裝識別名稱是 `pantry-tracker`。這一版是 **2.1.6**。畫面上的版本會再加上建置日期碼，例如 `2.1.6-20260928`（台北時間的建置日）。版號來自 `package.json`，日期碼在 Vite 建置時寫入。
+介面上的名字是「食材櫃」。套件與安裝識別名稱是 `pantry-tracker`。這一版是 **2.1.7**。畫面上的版本會再加上建置日期碼，例如 `2.1.7-20260928`（台北時間的建置日）。版號來自 `package.json`，日期碼在 Vite 建置時寫入。
 
 ## 這一版做什麼
 
@@ -153,6 +153,56 @@ iPhone 主畫面裡的 Google 彈出視窗有時會被系統擋住。請允許�
 提醒用的是瀏覽器 Notification API。打開 App、從背景回到前景，以及 App 開著時約每 15 分鐘，會檢查一次。同一項食材同一天只通知一次。
 
 iPhone 要加到主畫面，且系統為 iOS 16.4 以上，通知才比較有機會出現。iOS 不會在 App 完全關掉時持續在背景輪詢，所以「到了提醒日自動跳通知」無法保證；進到 App 時仍會補檢查。卡片上的狀態與主畫面數字徽章（若系統支援）不依賴通知權限。
+
+## LINE 提醒（生活提醒）
+
+瀏覽器通知仍可單獨使用。LINE 走 Messaging API，官方帳號名稱預定「生活提醒」。家人各自加這個官方帳號為好友，各自收到推播。頻道若還沒通過簡訊驗證、還沒有 Channel access token，App 與 Worker 都會照常運作，只是不會送出 LINE 訊息。
+
+App「更多」的 LINE 提醒可以開關、看加好友狀態，並貼上 LINE userId。綁定寫進目前雲端硬碟資料夾的 `line-subscribers.json`：
+
+```json
+{
+  "version": 1,
+  "enabled": true,
+  "subscribers": [
+    { "userId": "Uxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx", "label": "媽媽", "addedAt": "2026-09-28T00:00:00.000Z" }
+  ]
+}
+```
+
+userId 是 `U` 加上 32 個十六進位字元。這份檔案沒有任何頻道密鑰。
+
+### 網站建置變數
+
+只放公開的加好友連結，可留空：
+
+- `VITE_LINE_ADD_FRIEND_URL`：例如 `https://line.me/R/ti/p/@your-id`
+
+不要把 Channel access token 或 Channel secret 放進 `VITE_` 變數或前端原始碼。沒有這條連結時，「更多」會顯示尚未設定官方帳號。
+
+### Cloudflare Worker
+
+程式在 `workers/line-remind`。Cron 是 `0 0 * * *`（UTC 00:00，台北時間 08:00）。它用服務帳戶讀 `DRIVE_FOLDER_IDS` 裡的資料夾、依食材櫃既有的到期規則組訊息，再對每個已綁定的 userId 呼叫 `POST https://api.line.me/v2/bot/message/push`。
+
+部署前要設的變數：
+
+| 名稱 | 放哪裡 | 用途 |
+| --- | --- | --- |
+| `LINE_CHANNEL_ACCESS_TOKEN` | `npx wrangler secret put LINE_CHANNEL_ACCESS_TOKEN` | Messaging API 的長期 Channel access token。沒有就略過推播。 |
+| `LINE_CHANNEL_SECRET` | `npx wrangler secret put LINE_CHANNEL_SECRET` | 驗證 webhook 的 `x-line-signature`。沒有時 `POST /webhook` 仍回 200，內容是尚未設定。 |
+| `GOOGLE_SERVICE_ACCOUNT_JSON` | `npx wrangler secret put GOOGLE_SERVICE_ACCOUNT_JSON` | 服務帳戶 JSON 全文。權限用 `drive.readonly`。JSON 壞掉會略過，不會讓排程當掉。 |
+| `DRIVE_FOLDER_IDS` | `wrangler.toml` 的 `[vars]`，或 `npx wrangler secret put DRIVE_FOLDER_IDS` | 逗號分隔的雲端硬碟資料夾 id。服務帳戶搜尋不到瀏覽器寫入的 `appProperties`，所以要明確列出。 |
+| `LINE_REMIND_KV` | `wrangler.toml` 的 KV binding，可選 | 同一個 userId 同一天只推一次。沒綁定 KV 時，每天排程仍各推一次。 |
+
+接上的順序：
+
+1. 在 LINE Developers 建立 Messaging API 頻道，名稱用「生活提醒」。簡訊驗證完成後，發行長期 Channel access token，並複製 Channel secret。
+2. 建立 Google 服務帳戶，把每個食材櫃資料夾分享給該帳戶的 email（檢視者即可）。
+3. 在 `workers/line-remind` 執行 `npx wrangler secret put` 寫入上面的密鑰，再 `npx wrangler deploy`。
+4. 把 Webhook URL 設成 `https://<worker 網域>/webhook`。密鑰還沒填時，驗證網址會得到 200；填了 `LINE_CHANNEL_SECRET` 之後，簽章不對會回 401。好友加入時，follow 事件的 userId 會出現在 Worker 日誌，再貼回 App。
+5. 家人各自加官方帳號為好友，在「更多」貼上自己的 userId。開關存在同一份 `line-subscribers.json`，關掉就不會推這整個資料夾。
+
+`GET /health` 只回報密鑰有沒有設定，不會回傳密鑰內容。
 
 ## 技術架構
 

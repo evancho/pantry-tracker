@@ -1,0 +1,16 @@
+name = "pantry-line-remind"
+main = "src/index.js"
+compatibility_date = "2026-09-28"
+
+# 台北時間每天 08:00。Cloudflare Cron 以 UTC 計算。
+[triggers]
+crons = ["0 0 * * *"]
+
+# 資料夾 id 不是密鑰。正式環境也可改用 `npx wrangler secret put DRIVE_FOLDER_IDS`。
+# [vars]
+# DRIVE_FOLDER_IDS = "folderIdOne,folderIdTwo"
+
+# 選用。有綁定時，同一個 userId 同一天只推一次。
+# [[kv_namespaces]]
+# binding = "LINE_REMIND_KV"
+# id = "replace-with-kv-namespace-id"

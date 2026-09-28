@@ -5,9 +5,12 @@ import { CHANGELOG } from './changelog.js';
 describe('changelog', () => {
   it('lists this release first and keeps the 1.0.0 summary', () => {
     expect(CHANGELOG[0].version).toBe(pkg.version);
-    expect(CHANGELOG.map((entry) => entry.version)).toEqual(['2.1.6', '2.1.5', '2.1.4', '2.1.3', '2.1.2', '2.1.1', '2.1.0', '2.0.0', '1.2.1', '1.2.0', '1.1.0', '1.0.0']);
-    expect(CHANGELOG[0].summary).toMatch(/帳號/);
-    expect(CHANGELOG[0].changes.join('\n')).toMatch(/登出/);
+    expect(CHANGELOG.map((entry) => entry.version)).toEqual(['2.1.7', '2.1.6', '2.1.5', '2.1.4', '2.1.3', '2.1.2', '2.1.1', '2.1.0', '2.0.0', '1.2.1', '1.2.0', '1.1.0', '1.0.0']);
+    expect(CHANGELOG[0].summary).toMatch(/LINE/);
+    expect(CHANGELOG[0].changes.join('\n')).toMatch(/Channel access token|userId/);
+    const remembered = CHANGELOG.find((entry) => entry.version === '2.1.6');
+    expect(remembered.summary).toMatch(/帳號/);
+    expect(remembered.changes.join('\n')).toMatch(/登出/);
     const statusHead = CHANGELOG.find((entry) => entry.version === '2.1.5');
     expect(statusHead.summary).toMatch(/目前狀態/);
     expect(statusHead.changes.join('\n')).toMatch(/立即同步/);
