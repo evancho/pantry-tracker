@@ -202,6 +202,49 @@ export async function readPantryFolder(folderId) {
   };
 }
 
+export function visibleFolderEditors(permissions, { selfEmail = '' } = {}) {
+  const self = String(selfEmail || '').trim().toLowerCase();
+  const rows = (permissions || [])
+    .filter((row) => row && !row.deleted && row.type === 'user' && (row.role === 'owner' || row.role === 'writer'))
+    .map((row) => {
+      const email = row.emailAddress || '';
+      const owner = row.role === 'owner';
+      return {
+        id: row.id,
+        email,
+        name: row.displayName || email || 'Google 帳號',
+        role: owner ? 'owner' : 'writer',
+        removable: !owner,
+        self: Boolean(self) && email.toLowerCase() === self,
+      };
+    });
+  rows.sort((a, b) => Number(b.role === 'owner') - Number(a.role === 'owner') || a.email.localeCompare(b.email, 'zh-Hant'));
+  return rows;
+}
+
+export async function listFolderPermissions(folderId) {
+  const permissions = [];
+  let pageToken = '';
+  do {
+    const url = new URL(`https://www.googleapis.com/drive/v3/files/${folderId}/permissions`);
+    url.searchParams.set('fields', 'nextPageToken,permissions(id,type,role,emailAddress,displayName,deleted)');
+    url.searchParams.set('pageSize', '100');
+    if (pageToken) url.searchParams.set('pageToken', pageToken);
+    const response = await driveFetch(url, { headers: authHeader() });
+    const body = await response.json();
+    permissions.push(...(body.permissions || []));
+    pageToken = body.nextPageToken || '';
+  } while (pageToken);
+  return permissions;
+}
+
+export async function removeFolderPermission(folderId, permissionId) {
+  await driveFetch(`https://www.googleapis.com/drive/v3/files/${folderId}/permissions/${permissionId}`, {
+    method: 'DELETE',
+    headers: authHeader(),
+  });
+}
+
 export async function shareFolderWriter(folderId, email) {
   const response = await driveFetch(`https://www.googleapis.com/drive/v3/files/${folderId}/permissions?sendNotificationEmail=true`, {
     method: 'POST',

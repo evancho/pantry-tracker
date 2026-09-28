@@ -1,10 +1,25 @@
 import { countdownLabel, isInRemindWindow, todayISO } from './domain.js';
 
 const LOG_KEY = 'pantry-tracker-notified';
+const NOTIFY_PREF_KEY = 'pantry-tracker-notify';
 
 export function notificationSupport() {
   if (typeof Notification === 'undefined') return 'unsupported';
   return Notification.permission;
+}
+
+export function remindersEnabled(support = notificationSupport(), storage = globalThis.localStorage) {
+  if (support !== 'granted') return false;
+  try {
+    if (storage?.getItem(NOTIFY_PREF_KEY) === '0') return false;
+  } catch {
+    return true;
+  }
+  return true;
+}
+
+export function setRemindersEnabled(on, storage = globalThis.localStorage) {
+  storage?.setItem(NOTIFY_PREF_KEY, on ? '1' : '0');
 }
 
 export async function requestNotificationPermission() {
@@ -61,7 +76,7 @@ export async function updateAppBadge(count) {
 export async function checkReminders(items, today = todayISO(), { icon } = {}) {
   const due = items.filter((item) => isInRemindWindow(item, today));
   await updateAppBadge(due.length);
-  if (notificationSupport() !== 'granted' || due.length === 0) return;
+  if (!remindersEnabled() || due.length === 0) return;
 
   const log = readLog();
   pruneLog(log, today);

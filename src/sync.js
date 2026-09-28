@@ -99,6 +99,12 @@ export function syncStatusLabel({
   return { key: 'pending', label: '尚未同步' };
 }
 
+export function syncDetailMessage(message) {
+  const text = String(message || '').trim();
+  if (!text || text === '已與 Google 雲端硬碟同步') return '';
+  return text;
+}
+
 export function itemsInScope(items, scope) {
   const target = scope || null;
   return (items || []).filter((item) => item && !item.deletedAt && (item.householdId || null) === target);

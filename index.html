@@ -208,18 +208,27 @@
         <section id="invite-card" class="more-block" hidden>
           <h3>邀請家人</h3>
           <p class="hint">對方要能登入這個 Google 帳號。應用程式若還在測試，請先把對方加為測試使用者。</p>
-          <label class="field">
-            <span>家人的 Google 帳號</span>
-            <input id="share-email" type="email" autocomplete="off" inputmode="email" placeholder="name@gmail.com" />
-          </label>
-          <button type="button" id="invite-household" class="btn btn-primary">分享為編輯者</button>
-          <p id="invite-result" class="hint invite-link"></p>
+          <div id="editor-block">
+            <p id="editor-note" class="hint"></p>
+            <ul id="editor-list" class="editor-list" hidden></ul>
+          </div>
+          <div id="invite-fields">
+            <label class="field">
+              <span>家人的 Google 帳號</span>
+              <input id="share-email" type="email" autocomplete="off" inputmode="email" placeholder="name@gmail.com" />
+            </label>
+            <button type="button" id="invite-household" class="btn btn-primary">分享為編輯者</button>
+            <p id="invite-result" class="hint invite-link"></p>
+          </div>
         </section>
         <section class="more-block">
-          <h3>到期提醒</h3>
-          <p>開啟後，這台裝置會在你打開食材櫃時，通知已進入提醒範圍或已過期的食材。裝到 iPhone 主畫面後比較穩定。若拒絕授權，卡片上的狀態不會受影響。</p>
-          <button type="button" id="enable-notify" class="btn btn-primary">開啟到期提醒</button>
-          <p id="notify-state" class="hint"></p>
+          <div class="more-head">
+            <h3>到期提醒</h3>
+            <button type="button" id="enable-notify" class="switch" role="switch" aria-checked="false" aria-label="到期提醒">
+              <span class="switch-track" aria-hidden="true"></span>
+            </button>
+          </div>
+          <p id="notify-state" class="hint">打開食材櫃時，通知即將到期或已過期的食材。</p>
         </section>
         <section class="more-block">
           <h3>備份</h3>

@@ -5,9 +5,12 @@ import {
   downloadPhotoFile,
   driveConfigured,
   explainDriveError,
+  visibleFolderEditors,
   googleProfile,
+  listFolderPermissions,
   listRemoteItems,
   readPantryFolder,
+  removeFolderPermission,
   ensureGoogleAccess,
   requestGoogleAccess,
   shareFolderWriter,
@@ -239,6 +242,33 @@ export function joinFolder(link) {
     emit();
     onSynced();
     await syncNow();
+  });
+}
+
+export function listEditors() {
+  return guard(async () => {
+    const current = getSessionStatus();
+    if (!current.user) throw new Error('請先使用 Google 登入。');
+    if (!current.activeHouseholdId) throw new Error('請先建立或選擇資料夾。');
+    await ensureGoogleAccess();
+    const permissions = await listFolderPermissions(current.activeHouseholdId);
+    return visibleFolderEditors(permissions, { selfEmail: current.user.email || '' });
+  });
+}
+
+export function unshareEditor(permissionId) {
+  return guard(async () => {
+    const current = getSessionStatus();
+    if (!current.user) throw new Error('請先使用 Google 登入。');
+    if (!current.activeHouseholdId) throw new Error('請先建立或選擇資料夾。');
+    if (!permissionId) throw new Error('找不到這個分享。');
+    await ensureGoogleAccess();
+    const permissions = await listFolderPermissions(current.activeHouseholdId);
+    const target = permissions.find((row) => row.id === permissionId && !row.deleted);
+    if (!target) throw new Error('這個分享已經不在了。');
+    if (target.role === 'owner') throw new Error('無法取消擁有者的分享。');
+    if (target.type !== 'user' || target.role !== 'writer') throw new Error('只能取消編輯者的分享。');
+    await removeFolderPermission(current.activeHouseholdId, permissionId);
   });
 }
 
