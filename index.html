@@ -168,7 +168,16 @@
       </div>
       <div class="sheet-body">
         <section class="more-block">
-          <h3>目前狀態</h3>
+          <div class="more-head status-head">
+            <h3>目前狀態</h3>
+            <div class="status-tools">
+              <p id="more-sync-status" class="sync-status" role="status" data-state="local">只在這台裝置</p>
+              <div id="account-actions" class="status-actions" hidden>
+                <button type="button" id="sync-now" class="head-btn">立即同步</button>
+                <button type="button" id="sign-out" class="head-btn head-btn-quiet">登出</button>
+              </div>
+            </div>
+          </div>
           <p id="account-status" class="account-who">尚未登入。不登入時，食材只留在這台裝置。</p>
           <p id="cloud-setup" class="hint" hidden>這個網站還沒有 Google 登入設定。建置時放入 OAuth client id 後，食材與照片才會自動同步到 Google 雲端硬碟。沒有設定時，食材仍只留在這台裝置。</p>
           <div id="account-signed-in" hidden>
@@ -177,14 +186,9 @@
               <select id="household-select"></select>
             </label>
           </div>
-          <p id="more-sync-status" class="sync-status" role="status" data-state="local">只在這台裝置</p>
           <p id="account-detail" class="hint" hidden></p>
           <div id="account-signed-out">
             <button type="button" id="google-sign-in" class="btn btn-primary">使用 Google 登入</button>
-          </div>
-          <div id="account-actions" hidden>
-            <button type="button" id="sync-now" class="btn btn-primary">立即同步</button>
-            <button type="button" id="sign-out" class="btn btn-quiet">登出</button>
           </div>
         </section>
         <section id="create-folder-card" class="more-block" hidden>

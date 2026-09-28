@@ -1052,15 +1052,38 @@ dialog.sheet::backdrop { background: rgba(28, 25, 21, 0.48); }
 
 #more-dialog .sync-status { margin: 0; }
 
-#account-actions {
-  display: grid;
-  gap: 8px;
+.status-head {
+  align-items: center;
+  flex-wrap: wrap;
+  row-gap: 2px;
 }
 
-#sign-out {
-  width: 100%;
-  justify-self: stretch;
-  border-color: transparent;
+.status-tools {
+  display: flex;
+  flex: 1 1 auto;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 0 2px;
+  margin-left: auto;
+  max-width: 100%;
+}
+
+.status-actions {
+  display: flex;
+  flex: 0 1 auto;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: flex-end;
+}
+
+.status-tools .head-btn {
+  padding: 0 8px;
+}
+
+.head-btn-quiet {
+  color: var(--muted);
+  font-weight: 650;
 }
 
 .more-block p { margin: 0; line-height: 1.55; }
