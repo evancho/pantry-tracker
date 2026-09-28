@@ -296,7 +296,13 @@ button { cursor: pointer; }
 }
 
 .card.status-soon { border-left-color: #e0a04a; }
-.card.status-expired { border-left-color: #d16158; }
+
+.card.status-expired {
+  background: #fde8e4;
+  border-color: #e4b0a8;
+  border-left-width: 6px;
+  border-left-color: #9c332c;
+}
 
 .thumb-wrap { width: 84px; height: 84px; }
 
@@ -344,7 +350,7 @@ button { cursor: pointer; }
 
 .badge-ok { background: var(--ok-soft); color: #145c3c; }
 .badge-soon { background: var(--amber-soft); color: var(--amber); }
-.badge-expired { background: var(--red-soft); color: var(--red); }
+.badge-expired { background: #9c332c; color: white; }
 
 .meta, .remind { margin: 6px 0 0; }
 .meta { font-weight: 650; }
@@ -384,7 +390,33 @@ button { cursor: pointer; }
 }
 
 .compact.status-soon { border-left-color: #e0a04a; }
-.compact.status-expired { border-left-color: #d16158; }
+
+.compact.status-expired {
+  background: #fde8e4;
+  border-color: #e4b0a8;
+  border-left-width: 6px;
+  border-left-color: #9c332c;
+}
+
+.compact.status-expired .compact-open {
+  grid-template-columns: minmax(0, 1fr) auto auto auto;
+}
+
+.compact-expired {
+  color: white;
+  background: #9c332c;
+  border-radius: 999px;
+  padding: 1px 7px;
+  font-size: 0.75rem;
+  font-weight: 800;
+  line-height: 1.5;
+  white-space: nowrap;
+}
+
+.compact.status-expired .compact-date {
+  color: #9c332c;
+  font-weight: 800;
+}
 
 .compact-open {
   flex: 1 1 auto;

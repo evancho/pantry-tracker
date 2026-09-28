@@ -203,6 +203,7 @@ function renderCompactRow(item) {
     el('span', { class: 'compact-name' }, item.name),
     el('span', { class: 'compact-area' }, item.area),
     el('span', { class: 'compact-date' }, formatDate(item.expiry)),
+    status === '已過期' ? el('span', { class: 'compact-expired' }, '已過期') : null,
   ]);
   const remove = el('button', {
     type: 'button',
