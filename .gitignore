@@ -4,5 +4,8 @@ dist/
 coverage/
 public/ocr-runtime/
 *.local
+.env
+.env.*
+!.env.example
 .DS_Store
 /*.traineddata

@@ -1,5 +1,5 @@
 const DB_NAME = 'pantry-tracker';
-const DB_VERSION = 1;
+const DB_VERSION = 2;
 
 let dbPromise = null;
 
@@ -14,6 +14,9 @@ function openDb() {
         }
         if (!db.objectStoreNames.contains('photos')) {
           db.createObjectStore('photos', { keyPath: 'id' });
+        }
+        if (!db.objectStoreNames.contains('outbox')) {
+          db.createObjectStore('outbox', { keyPath: 'key' });
         }
       };
       request.onsuccess = () => resolve(request.result);
@@ -49,17 +52,26 @@ function toStoredItem(item) {
     area: item.area,
     leadDays: item.leadDays,
     photoId: item.photoId || null,
+    photoPath: item.photoPath || null,
+    householdId: item.householdId || null,
     createdAt: item.createdAt,
     updatedAt: item.updatedAt,
+    deletedAt: item.deletedAt || null,
   };
 }
 
-export async function loadAll() {
+function outboxKey(householdId, id) {
+  return `${householdId}:${id}`;
+}
+
+export async function loadAll(householdId = null) {
   const db = await openDb();
   const items = await requestToPromise(db.transaction('items').objectStore('items').getAll());
   const photos = await requestToPromise(db.transaction('photos').objectStore('photos').getAll());
   const photoMap = new Map(photos.map((photo) => [photo.id, photo.blob]));
+  const scope = householdId || null;
   return items
+    .filter((item) => !item.deletedAt && (item.householdId || null) === scope)
     .map((item) => ({
       ...item,
       photoBlob: item.photoId ? photoMap.get(item.photoId) || null : null,
@@ -67,11 +79,17 @@ export async function loadAll() {
     .sort((a, b) => (a.createdAt || 0) - (b.createdAt || 0));
 }
 
-export async function saveItem(item, photoBlob) {
+export async function listOutbox() {
+  const db = await openDb();
+  const rows = await requestToPromise(db.transaction('outbox').objectStore('outbox').getAll());
+  return rows || [];
+}
+
+export async function saveItem(item, photoBlob, { queue = true } = {}) {
   const db = await openDb();
   const existing = await requestToPromise(db.transaction('items').objectStore('items').get(item.id));
   const stored = toStoredItem(item);
-  const tx = db.transaction(['items', 'photos'], 'readwrite');
+  const tx = db.transaction(['items', 'photos', 'outbox'], 'readwrite');
   const photos = tx.objectStore('photos');
 
   if (photoBlob instanceof Blob) {
@@ -88,15 +106,41 @@ export async function saveItem(item, photoBlob) {
   }
 
   tx.objectStore('items').put(stored);
+  if (queue && stored.householdId) {
+    tx.objectStore('outbox').put({
+      key: outboxKey(stored.householdId, stored.id),
+      id: stored.id,
+      householdId: stored.householdId,
+      op: 'upsert',
+      updatedAt: stored.updatedAt,
+    });
+  }
   await transactionDone(tx);
   return stored;
 }
 
-export async function deleteItem(id) {
+export async function deleteItem(id, { queue = true, updatedAt = Date.now() } = {}) {
   const db = await openDb();
   const existing = await requestToPromise(db.transaction('items').objectStore('items').get(id));
-  const tx = db.transaction(['items', 'photos'], 'readwrite');
+  const tx = db.transaction(['items', 'photos', 'outbox'], 'readwrite');
   tx.objectStore('items').delete(id);
   if (existing?.photoId) tx.objectStore('photos').delete(existing.photoId);
+  if (queue && existing?.householdId) {
+    tx.objectStore('outbox').put({
+      key: outboxKey(existing.householdId, id),
+      id,
+      householdId: existing.householdId,
+      op: 'delete',
+      updatedAt,
+      photoPath: existing.photoPath || null,
+    });
+  }
+  await transactionDone(tx);
+}
+
+export async function ackOutbox(key) {
+  const db = await openDb();
+  const tx = db.transaction('outbox', 'readwrite');
+  tx.objectStore('outbox').delete(key);
   await transactionDone(tx);
 }
