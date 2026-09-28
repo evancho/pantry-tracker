@@ -1,0 +1,8 @@
+node_modules/
+dist/
+.vite/
+coverage/
+public/ocr-runtime/
+*.local
+.DS_Store
+/*.traineddata
