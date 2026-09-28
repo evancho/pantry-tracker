@@ -17,6 +17,7 @@ import {
   switchHousehold,
   syncNow,
 } from './session.js';
+import { reauthCopy } from './auth-restore.js';
 import { roleLabel, syncDetailMessage, syncStatusLabel } from './sync.js';
 import {
   AREAS,
@@ -333,6 +334,7 @@ function paintSyncStatus(account = getSessionStatus()) {
     message: account.message,
     online: navigator.onLine,
     role: account.role,
+    needsReauth: account.needsReauth,
   });
   for (const node of [ui.syncStatus, ui.moreSyncStatus]) {
     if (!node) continue;
@@ -343,18 +345,22 @@ function paintSyncStatus(account = getSessionStatus()) {
 }
 
 function renderAccount(account = getSessionStatus()) {
-  const signedIn = Boolean(account.configured && account.user);
+  const remembered = Boolean(account.configured && account.user);
+  const authorized = remembered && !account.needsReauth;
   ui.cloudSetup.hidden = account.configured;
-  ui.accountSignedOut.hidden = !account.configured || Boolean(account.user);
-  ui.accountSignedIn.hidden = !signedIn;
-  ui.accountActions.hidden = !signedIn;
-  ui.createFolderCard.hidden = !signedIn;
-  ui.joinFolderCard.hidden = !signedIn;
-  ui.inviteCard.hidden = !signedIn;
+  ui.accountSignedOut.hidden = !account.configured || authorized;
+  ui.accountSignedIn.hidden = !remembered;
+  ui.accountActions.hidden = !remembered;
+  ui.syncNow.hidden = !authorized;
+  ui.createFolderCard.hidden = !authorized;
+  ui.joinFolderCard.hidden = !authorized;
+  ui.inviteCard.hidden = !authorized;
   if (!account.configured) {
     ui.accountStatus.textContent = account.activeName
       ? `尚未設定 Google 登入。這台裝置仍顯示「${account.activeName}」。`
       : '尚未設定 Google 登入。食材只留在這台裝置。';
+  } else if (account.needsReauth && account.user) {
+    ui.accountStatus.textContent = reauthCopy(account.user, account.activeName);
   } else if (!account.user && account.activeName) {
     ui.accountStatus.textContent = `尚未登入。這台裝置仍顯示「${account.activeName}」。登入後會再同步。`;
   } else if (!account.user) {
@@ -823,6 +829,10 @@ async function loadEditors() {
     ui.editorNote.textContent = '還沒有資料夾。建立或加入後，這裡會列出已分享的編輯者。';
     return;
   }
+  if (account.needsReauth) {
+    ui.editorNote.textContent = '請再按一次「使用 Google 登入」，才能查看已分享的編輯者。';
+    return;
+  }
   ui.editorNote.textContent = '正在讀取已分享的編輯者…';
   try {
     const editors = await listEditors();
@@ -1014,6 +1024,7 @@ function bind() {
         message: account.message,
         online: navigator.onLine,
         role: account.role,
+        needsReauth: account.needsReauth,
       }).label;
       toast(detail || label);
     });

@@ -86,11 +86,12 @@ export function syncStatusLabel({
   message = '',
   online = true,
   role = '',
+  needsReauth = false,
 } = {}) {
   if (!online) return { key: 'offline', label: '離線' };
   if (syncing) return { key: 'syncing', label: '同步中' };
   if (!configured) return { key: 'local', label: '只在這台裝置' };
-  if (!user) return { key: 'login', label: '需登入才能同步' };
+  if (!user || needsReauth) return { key: 'login', label: '需登入才能同步' };
   if (!activeHouseholdId) return { key: 'folder', label: '尚未設定資料夾' };
   const text = String(message || '');
   if (role === 'reader' || /只能檢視/.test(text)) return { key: 'reader', label: '只能檢視' };
@@ -101,7 +102,7 @@ export function syncStatusLabel({
 
 export function syncDetailMessage(message) {
   const text = String(message || '').trim();
-  if (!text || text === '已與 Google 雲端硬碟同步') return '';
+  if (!text || text === '已與 Google 雲端硬碟同步' || text.startsWith('已記住')) return '';
   return text;
 }
 

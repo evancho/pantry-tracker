@@ -70,17 +70,23 @@ async function driveFetch(url, options = {}) {
   throw error;
 }
 
-export function ensureGoogleAccess() {
-  if (token?.accessToken && token.expiresAt > Date.now() + 60000) return Promise.resolve(token);
-  return requestGoogleAccess({ prompt: '' });
+export function clearGoogleToken() {
+  token = null;
 }
 
-export function requestGoogleAccess({ prompt = 'select_account' } = {}) {
+export function ensureGoogleAccess({ prompt = '', hint = '' } = {}) {
+  if (token?.accessToken && token.expiresAt > Date.now() + 60000) return Promise.resolve(token);
+  return requestGoogleAccess({ prompt, hint });
+}
+
+export function requestGoogleAccess({ prompt = 'select_account', hint = '' } = {}) {
   return loadGis().then(() => new Promise((resolve, reject) => {
     const id = clientId();
+    const remembered = String(hint || '').trim();
     tokenClient = window.google.accounts.oauth2.initTokenClient({
       client_id: id,
       scope: SCOPE,
+      ...(remembered ? { hint: remembered } : {}),
       callback: (response) => {
         if (response.error) {
           const error = new Error(response.error);
@@ -95,7 +101,7 @@ export function requestGoogleAccess({ prompt = 'select_account' } = {}) {
         resolve(token);
       },
     });
-    tokenClient.requestAccessToken({ prompt });
+    tokenClient.requestAccessToken(remembered ? { prompt, hint: remembered } : { prompt });
   }));
 }
 

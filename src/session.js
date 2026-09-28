@@ -11,6 +11,7 @@ import {
   listRemoteItems,
   readPantryFolder,
   removeFolderPermission,
+  clearGoogleToken,
   ensureGoogleAccess,
   requestGoogleAccess,
   shareFolderWriter,
@@ -18,6 +19,7 @@ import {
   uploadPhotoFile,
   writeRemoteItem,
 } from './drive.js';
+import { buttonAuthSteps, isUserCancel, reauthCopy, silentAuthPrompt } from './auth-restore.js';
 import { driveFolderLink, mergeHouseholdItems, migrationCandidates, parseDriveFolderId, scopeForList } from './sync.js';
 
 const SKIP_PREFIX = 'pantry-tracker-skip-import:';
@@ -33,6 +35,7 @@ const status = {
   syncing: false,
   message: '',
   pendingLocal: 0,
+  needsReauth: false,
 };
 
 let onStatus = () => {};
@@ -89,6 +92,37 @@ function rememberUser(user) {
   else localStorage.removeItem(USER_KEY);
 }
 
+function requireAuthorized() {
+  if (!status.user || status.needsReauth) {
+    throw new Error('請再按一次「使用 Google 登入」。');
+  }
+}
+
+function currentFolderName() {
+  return status.households.find((row) => row.id === status.activeHouseholdId)?.name || '';
+}
+
+function keepRememberedAccount(user) {
+  clearGoogleToken();
+  rememberUser(user);
+  status.needsReauth = true;
+  status.message = reauthCopy(user, currentFolderName());
+}
+
+async function requestButtonAccess(email) {
+  const steps = buttonAuthSteps(email);
+  let lastError = null;
+  for (const step of steps) {
+    try {
+      return await requestGoogleAccess(step);
+    } catch (error) {
+      lastError = error;
+      if (isUserCancel(error)) throw error;
+    }
+  }
+  throw lastError;
+}
+
 export function startSession({ onStatus: statusHandler, onSynced: syncedHandler }) {
   onStatus = statusHandler || (() => {});
   onSynced = syncedHandler || (() => {});
@@ -104,11 +138,13 @@ export function startSession({ onStatus: statusHandler, onSynced: syncedHandler 
   started = true;
   window.addEventListener('online', () => {
     if (!status.user) return;
-    ensureGoogleAccess()
-      .then(() => syncNow())
+    requestGoogleAccess({ prompt: silentAuthPrompt(), hint: status.user.email || '' })
+      .then(() => {
+        status.needsReauth = false;
+        return syncNow();
+      })
       .catch(() => {
-        rememberUser(null);
-        status.message = '請再按一次「使用 Google 登入」。';
+        keepRememberedAccount(status.user);
         emit();
         onSynced();
       });
@@ -126,20 +162,22 @@ export function startSession({ onStatus: statusHandler, onSynced: syncedHandler 
     });
     return;
   }
-  requestGoogleAccess({ prompt: '' })
+  requestGoogleAccess({ prompt: silentAuthPrompt(), hint: remembered.email || '' })
     .then(() => googleProfile())
     .then(async (profile) => {
       rememberUser(profile);
+      status.needsReauth = false;
       await refreshPending();
       emit();
       onSynced();
       await syncNow();
     })
     .catch(() => {
-      rememberUser(null);
-      status.message = '請再按一次「使用 Google 登入」。這台裝置上的清單仍可查看與修改。';
-      emit();
-      onSynced();
+      keepRememberedAccount(remembered);
+      refreshPending().then(() => {
+        emit();
+        onSynced();
+      });
     });
 }
 
@@ -166,9 +204,11 @@ async function guard(work) {
 
 export function signInGoogle() {
   return guard(async () => {
-    await requestGoogleAccess({ prompt: 'select_account' });
+    const hinted = status.user?.email || readRememberedUser()?.email || '';
+    await requestButtonAccess(hinted);
     const profile = await googleProfile();
     rememberUser(profile);
+    status.needsReauth = false;
     writeFolders(readFolders());
     await refreshPending();
     emit();
@@ -181,6 +221,7 @@ export function signOutUser() {
   return guard(async () => {
     await signOutGoogle();
     rememberUser(null);
+    status.needsReauth = false;
     status.message = '';
     await refreshPending();
     emit();
@@ -247,10 +288,11 @@ export function joinFolder(link) {
 
 export function listEditors() {
   return guard(async () => {
+    requireAuthorized();
     const current = getSessionStatus();
     if (!current.user) throw new Error('請先使用 Google 登入。');
     if (!current.activeHouseholdId) throw new Error('請先建立或選擇資料夾。');
-    await ensureGoogleAccess();
+    await ensureGoogleAccess({ prompt: '', hint: status.user?.email || '' });
     const permissions = await listFolderPermissions(current.activeHouseholdId);
     return visibleFolderEditors(permissions, { selfEmail: current.user.email || '' });
   });
@@ -258,11 +300,12 @@ export function listEditors() {
 
 export function unshareEditor(permissionId) {
   return guard(async () => {
+    requireAuthorized();
     const current = getSessionStatus();
     if (!current.user) throw new Error('請先使用 Google 登入。');
     if (!current.activeHouseholdId) throw new Error('請先建立或選擇資料夾。');
     if (!permissionId) throw new Error('找不到這個分享。');
-    await ensureGoogleAccess();
+    await ensureGoogleAccess({ prompt: '', hint: status.user?.email || '' });
     const permissions = await listFolderPermissions(current.activeHouseholdId);
     const target = permissions.find((row) => row.id === permissionId && !row.deleted);
     if (!target) throw new Error('這個分享已經不在了。');
@@ -274,6 +317,7 @@ export function unshareEditor(permissionId) {
 
 export function shareFolder(email) {
   return guard(async () => {
+    requireAuthorized();
     const current = getSessionStatus();
     if (!current.activeHouseholdId) throw new Error('請先建立或選擇雲端硬碟資料夾。');
     const address = String(email || '').trim();
@@ -305,13 +349,13 @@ export function importLocalPantry() {
 }
 
 export async function syncNow() {
-  if (!status.configured || !status.user || !status.activeHouseholdId || syncing || !navigator.onLine) return;
+  if (!status.configured || !status.user || status.needsReauth || !status.activeHouseholdId || syncing || !navigator.onLine) return;
   const householdId = status.activeHouseholdId;
   syncing = true;
   status.syncing = true;
   emit();
   try {
-    await ensureGoogleAccess();
+    await ensureGoogleAccess({ prompt: '', hint: status.user?.email || '' });
     const remote = await listRemoteItems(householdId);
     const local = await loadAll(householdId);
     const plan = mergeHouseholdItems(local, remote);
@@ -380,12 +424,13 @@ export async function syncNow() {
     status.message = '已與 Google 雲端硬碟同步';
     onSynced();
   } catch (error) {
-    status.message = explainDriveError(error);
     const code = String(error?.code || '');
-    if (code === '401' || code === 'interaction_required') {
-      rememberUser(null);
-      onSynced();
+    if (code === '401' || code === 'interaction_required' || code === 'popup_blocked_by_browser') {
+      keepRememberedAccount(status.user);
+    } else {
+      status.message = explainDriveError(error);
     }
+    onSynced();
   } finally {
     syncing = false;
     status.syncing = false;

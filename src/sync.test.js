@@ -88,6 +88,7 @@ describe('homepage sync status', () => {
     expect(syncStatusLabel({ ...signedIn, online: false, syncing: true }).label).toBe('離線');
     expect(syncStatusLabel({ ...signedIn, syncing: true }).label).toBe('同步中');
     expect(syncStatusLabel({ ...signedIn, user: null }).label).toBe('需登入才能同步');
+    expect(syncStatusLabel({ ...signedIn, needsReauth: true }).label).toBe('需登入才能同步');
     expect(syncStatusLabel({
       configured: true,
       user: { email: 'family@example.com' },
