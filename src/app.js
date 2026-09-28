@@ -25,6 +25,7 @@ import {
   requestNotificationPermission,
   updateAppBadge,
 } from './notify.js';
+import { describeOcrError } from './ocr-message.js';
 import { recognizeLabel } from './ocr.js';
 
 const VIEW_KEY = 'pantry-tracker-view';
@@ -43,6 +44,7 @@ const state = {
   error: '',
   query: '',
   sort: 'expiry-asc',
+  density: 'standard',
   view: 'pantry',
 };
 
@@ -103,13 +105,14 @@ function loadView() {
   try {
     const saved = JSON.parse(localStorage.getItem(VIEW_KEY) || '{}');
     if (SORTS.some((option) => option.id === saved.sort)) state.sort = saved.sort;
+    if (saved.density === 'compact' || saved.density === 'standard') state.density = saved.density;
   } catch {
     // Ignore a broken preference and use the defaults.
   }
 }
 
 function saveView() {
-  localStorage.setItem(VIEW_KEY, JSON.stringify({ sort: state.sort }));
+  localStorage.setItem(VIEW_KEY, JSON.stringify({ sort: state.sort, density: state.density }));
 }
 
 function urlFor(item) {
@@ -189,10 +192,39 @@ function renderCard(item, today) {
   ]);
 }
 
+function renderCompactRow(item) {
+  const status = itemStatus(item, todayISO());
+  const open = el('button', {
+    type: 'button',
+    class: 'compact-open',
+    'data-action': 'edit',
+    'aria-label': `編輯${item.name}`,
+  }, [
+    el('span', { class: 'compact-name' }, item.name),
+    el('span', { class: 'compact-area' }, item.area),
+    el('span', { class: 'compact-date' }, formatDate(item.expiry)),
+  ]);
+  const remove = el('button', {
+    type: 'button',
+    class: 'compact-delete',
+    'data-action': 'delete',
+    'aria-label': `刪除${item.name}`,
+  }, '刪除');
+  return el('article', {
+    class: `compact status-${statusClass(status)}`,
+    role: 'listitem',
+    'data-id': item.id,
+  }, [open, remove]);
+}
+
 function renderControls() {
   if (ui.nameFilter.value !== state.query) ui.nameFilter.value = state.query;
   ui.nameFilterClear.hidden = state.query.trim() === '';
   ui.sort.value = state.sort;
+  const compact = state.density === 'compact';
+  ui.densityStandard.setAttribute('aria-pressed', compact ? 'false' : 'true');
+  ui.densityCompact.setAttribute('aria-pressed', compact ? 'true' : 'false');
+  ui.list.classList.toggle('list-compact', compact);
 }
 
 function applyVersion() {
@@ -237,7 +269,9 @@ function render() {
     today,
   });
 
-  ui.list.replaceChildren(...visible.map((item) => renderCard(item, today)));
+  ui.list.replaceChildren(...visible.map((item) => (
+    state.density === 'compact' ? renderCompactRow(item) : renderCard(item, today)
+  )));
   ui.list.hidden = visible.length === 0;
 
   if (!state.ready) {
@@ -342,6 +376,7 @@ function openEditor(item) {
   ui.area.value = isValidArea(item?.area) ? item.area : '冷藏';
   ui.lead.value = String(item ? normalizeLeadDays(item.leadDays) : 1);
   ui.ocrStatus.textContent = '';
+  ui.editorDelete.hidden = !item;
   updateLeadHint();
   showPreview();
   ui.editor.showModal();
@@ -392,7 +427,7 @@ async function runOcr() {
       }
     });
     if (!parsed.name && !parsed.expiry) {
-      ui.ocrStatus.textContent = '無法辨識，請手動輸入名稱與期限。';
+      ui.ocrStatus.textContent = '沒有辨識出名稱或期限。照片已保留，請手動輸入。';
       return;
     }
     if (parsed.name) ui.name.value = parsed.name;
@@ -403,7 +438,7 @@ async function runOcr() {
     ui.ocrStatus.textContent = '已帶入辨識結果，請再確認一次。';
   } catch (error) {
     console.error(error);
-    ui.ocrStatus.textContent = '無法辨識，請手動輸入名稱與期限。';
+    ui.ocrStatus.textContent = describeOcrError(error);
   } finally {
     ui.ocrBtn.disabled = false;
     ui.ocrBtn.removeAttribute('aria-busy');
@@ -649,6 +684,13 @@ function bind() {
     saveView();
     render();
   });
+  const setDensity = (density) => {
+    state.density = density;
+    saveView();
+    render();
+  };
+  ui.densityStandard.addEventListener('click', () => setDensity('standard'));
+  ui.densityCompact.addEventListener('click', () => setDensity('compact'));
 
   ui.tabPantry.addEventListener('click', () => setView('pantry'));
   ui.tabRecipes.addEventListener('click', () => setView('recipes'));
@@ -658,6 +700,13 @@ function bind() {
   ui.addBtn.addEventListener('click', () => openEditor(null));
   ui.editorClose.addEventListener('click', closeEditor);
   ui.editorCancel.addEventListener('click', closeEditor);
+  ui.editorDelete.addEventListener('click', async () => {
+    const item = state.items.find((row) => row.id === draft?.id);
+    if (!item) return;
+    const id = item.id;
+    await removeItem(item);
+    if (!state.items.some((row) => row.id === id)) closeEditor();
+  });
   ui.editor.addEventListener('close', syncModal);
   ui.editorForm.addEventListener('submit', saveEditor);
   ui.expiry.addEventListener('change', applyExpiryDefault);
@@ -735,6 +784,8 @@ function cacheElements() {
     nameFilter: 'name-filter',
     nameFilterClear: 'name-filter-clear',
     sort: 'sort',
+    densityStandard: 'density-standard',
+    densityCompact: 'density-compact',
     list: 'list',
     empty: 'empty',
     emptyTitle: 'empty-title',
@@ -754,6 +805,7 @@ function cacheElements() {
     editorTitle: 'editor-title',
     editorClose: 'editor-close',
     editorCancel: 'editor-cancel',
+    editorDelete: 'editor-delete',
     saveBtn: 'editor-save',
     photoPreview: 'photo-preview',
     cameraBtn: 'camera-btn',

@@ -49,6 +49,13 @@
             <button type="button" id="name-filter-clear" class="text-btn" hidden>清除</button>
           </div>
         </div>
+        <div class="density-field">
+          <span id="density-label">清單</span>
+          <div class="density-toggle" role="group" aria-labelledby="density-label">
+            <button type="button" id="density-standard" aria-pressed="true">標準模式</button>
+            <button type="button" id="density-compact" aria-pressed="false">簡易模式</button>
+          </div>
+        </div>
         <label class="sort-field">
           <span>排序</span>
           <select id="sort"></select>
@@ -108,8 +115,6 @@
               <button type="button" id="clear-photo-btn" class="btn btn-quiet" hidden>移除照片</button>
             </div>
             <p id="ocr-status" class="hint" role="status"></p>
-            <input id="camera-input" type="file" accept="image/*" capture="environment" hidden />
-            <input id="gallery-input" type="file" accept="image/*" hidden />
           </div>
           <label class="field">
             <span>名稱</span>
@@ -130,6 +135,7 @@
           <p id="lead-hint" class="hint"></p>
         </div>
         <div class="sheet-actions">
+          <button type="button" id="editor-delete" class="btn danger" hidden>刪除</button>
           <button type="button" id="editor-cancel" class="btn">取消</button>
           <button type="submit" id="editor-save" class="btn btn-primary">儲存</button>
         </div>
@@ -187,6 +193,8 @@
       </div>
     </dialog>
 
+    <input id="camera-input" class="file-input" type="file" accept="image/*" capture="environment" />
+    <input id="gallery-input" class="file-input" type="file" accept="image/*" />
     <div id="toast" class="toast" role="status" hidden></div>
     <noscript>食材櫃需要 JavaScript，才能在這台裝置上記錄食材。</noscript>
     <script type="module" src="/src/main.js"></script>
