@@ -1,6 +1,18 @@
 /** Newest release first. Version numbers match package.json, without the build datecode. */
 export const CHANGELOG = Object.freeze([
   {
+    version: '1.2.0',
+    date: '2026-09-28',
+    summary: '清單可切換簡易模式，並修好拍照辨識與確認視窗。',
+    changes: Object.freeze([
+      '清單可在「標準模式」與「簡易模式」之間切換。選擇會記在這台裝置。',
+      '標準模式維持照片、狀態、提醒與編輯／刪除。簡易模式一列只顯示名稱、存放位置與到期日，點該列可編輯。',
+      '刪除確認視窗改為內容高度，不再在訊息下方留一大片空白。',
+      '「拍照辨識」改為把處理過的 JPEG 交給裝置上的辨識引擎。iPhone 改用較相容的引擎，並在失敗時說明是逾時、元件沒載入，或是沒讀到名稱與期限。',
+      '開啟新增或編輯時，不會自動選到「名稱」，手機鍵盤不會跟著打開。',
+    ]),
+  },
+  {
     version: '1.1.0',
     date: '2026-09-28',
     summary: '清單改成單欄，並用名稱搜尋。',

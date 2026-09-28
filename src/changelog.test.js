@@ -5,9 +5,12 @@ import { CHANGELOG } from './changelog.js';
 describe('changelog', () => {
   it('lists this release first and keeps the 1.0.0 summary', () => {
     expect(CHANGELOG[0].version).toBe(pkg.version);
-    expect(CHANGELOG.map((entry) => entry.version)).toContain('1.0.0');
-    expect(CHANGELOG[0].summary).toMatch(/名稱/);
-    expect(CHANGELOG[0].changes.join('\n')).toMatch(/單欄/);
+    expect(CHANGELOG.map((entry) => entry.version)).toEqual(['1.2.0', '1.1.0', '1.0.0']);
+    expect(CHANGELOG[0].summary).toMatch(/簡易模式/);
+    expect(CHANGELOG[0].changes.join('\n')).toMatch(/拍照辨識/);
+    const previous = CHANGELOG.find((entry) => entry.version === '1.1.0');
+    expect(previous.summary).toMatch(/名稱/);
+    expect(previous.changes.join('\n')).toMatch(/單欄/);
     expect(CHANGELOG.at(-1).changes.join('\n')).toMatch(/這台裝置/);
     for (const entry of CHANGELOG) {
       expect(entry.date).toMatch(/^\d{4}-\d{2}-\d{2}$/);
