@@ -8,14 +8,16 @@ import {
   getSessionStatus,
   importLocalPantry,
   joinFolder,
+  listEditors,
   shareFolder,
+  unshareEditor,
   signInGoogle,
   signOutUser,
   startSession,
   switchHousehold,
   syncNow,
 } from './session.js';
-import { roleLabel, syncStatusLabel } from './sync.js';
+import { roleLabel, syncDetailMessage, syncStatusLabel } from './sync.js';
 import {
   AREAS,
   SORTS,
@@ -37,6 +39,8 @@ import { compressImage } from './images.js';
 import {
   checkReminders,
   notificationSupport,
+  remindersEnabled,
+  setRemindersEnabled,
   requestNotificationPermission,
   updateAppBadge,
 } from './notify.js';
@@ -330,38 +334,51 @@ function paintSyncStatus(account = getSessionStatus()) {
     online: navigator.onLine,
     role: account.role,
   });
-  ui.syncStatus.textContent = state.label;
-  ui.syncStatus.dataset.state = state.key;
-  ui.syncStatus.title = account.message || state.label;
+  for (const node of [ui.syncStatus, ui.moreSyncStatus]) {
+    if (!node) continue;
+    node.textContent = state.label;
+    node.dataset.state = state.key;
+    node.title = syncDetailMessage(account.message) || state.label;
+  }
 }
 
 function renderAccount(account = getSessionStatus()) {
+  const signedIn = Boolean(account.configured && account.user);
   ui.cloudSetup.hidden = account.configured;
   ui.accountSignedOut.hidden = !account.configured || Boolean(account.user);
-  ui.accountSignedIn.hidden = !account.configured || !account.user;
-  const bits = [];
+  ui.accountSignedIn.hidden = !signedIn;
+  ui.accountActions.hidden = !signedIn;
+  ui.createFolderCard.hidden = !signedIn;
+  ui.joinFolderCard.hidden = !signedIn;
+  ui.inviteCard.hidden = !signedIn;
   if (!account.configured) {
-    bits.push(account.activeName
+    ui.accountStatus.textContent = account.activeName
       ? `尚未設定 Google 登入。這台裝置仍顯示「${account.activeName}」。`
-      : '尚未設定 Google 登入。食材只留在這台裝置。');
+      : '尚未設定 Google 登入。食材只留在這台裝置。';
   } else if (!account.user && account.activeName) {
-    bits.push(`尚未登入。這台裝置仍顯示「${account.activeName}」。登入後會再同步。`);
-  } else if (!account.user) bits.push('尚未登入。不登入時，食材只留在這台裝置。');
-  else if (!account.activeName) bits.push(`已登入 ${account.user.email || account.user.displayName}。請建立或貼上雲端硬碟資料夾。`);
-  else {
+    ui.accountStatus.textContent = `尚未登入。這台裝置仍顯示「${account.activeName}」。登入後會再同步。`;
+  } else if (!account.user) {
+    ui.accountStatus.textContent = '尚未登入。不登入時，食材只留在這台裝置。';
+  } else if (!account.activeName) {
+    ui.accountStatus.textContent = `已登入 ${account.user.email || account.user.displayName}。請建立新資料夾，或加入家人的資料夾。`;
+  } else {
     const role = roleLabel(account.role);
-    bits.push(`${account.user.email || account.user.displayName} · ${account.activeName}${role ? ` · ${role}` : ''}`);
+    const who = account.user.email || account.user.displayName;
+    ui.accountStatus.textContent = role ? `${who} · ${role}` : who;
   }
-  if (account.syncing) bits.push('同步中…');
-  else if (account.message) bits.push(account.message);
-  ui.accountStatus.textContent = bits.join(' ');
   paintSyncStatus(account);
+  const detail = account.syncing ? '' : syncDetailMessage(account.message);
+  ui.accountDetail.hidden = !detail;
+  ui.accountDetail.textContent = detail;
+  if (ui.moreDialog?.open) scheduleEditors();
   const signature = `${account.households.map((row) => `${row.id}:${row.role}:${row.name}`).join('|')}:${account.activeHouseholdId || ''}`;
   if (ui.householdSelect.dataset.signature !== signature) {
     ui.householdSelect.dataset.signature = signature;
-    ui.householdSelect.replaceChildren(...account.households.map((row) => (
+    const options = account.households.map((row) => (
       el('option', { value: row.id }, `${row.name}（${roleLabel(row.role)}）`)
-    )));
+    ));
+    if (!options.length) options.push(el('option', { value: '' }, '尚未選擇'));
+    ui.householdSelect.replaceChildren(...options);
     if (account.activeHouseholdId) ui.householdSelect.value = account.activeHouseholdId;
   }
   const showMigrate = Boolean(account.user && account.activeHouseholdId && account.pendingLocal > 0 && !account.importSkipped);
@@ -576,7 +593,7 @@ function ask(message, okLabel, title) {
     ui.confirmTitle.textContent = title || '請確認';
     ui.confirmText.textContent = message;
     ui.confirmOk.textContent = okLabel || '確定';
-    ui.confirmOk.classList.toggle('danger', okLabel === '刪除');
+    ui.confirmOk.classList.toggle('danger', okLabel === '刪除' || okLabel === '取消分享');
     let settled = false;
     const finish = (value) => {
       if (settled) return;
@@ -698,22 +715,17 @@ async function importFile(file) {
 
 function refreshNotifyCopy() {
   const support = notificationSupport();
+  const on = remindersEnabled();
+  ui.enableNotify.disabled = support === 'unsupported';
+  ui.enableNotify.setAttribute('aria-checked', on ? 'true' : 'false');
   if (support === 'unsupported') {
-    ui.notifyState.textContent = '這個瀏覽器沒有通知功能。清單上的狀態仍會顯示。';
-    ui.enableNotify.textContent = '無法使用系統通知';
-    ui.enableNotify.disabled = true;
-    return;
-  }
-  ui.enableNotify.disabled = false;
-  if (support === 'granted') {
-    ui.notifyState.textContent = '提醒已開啟。之後打開食材櫃，會通知進入提醒範圍或已過期的食材。';
-    ui.enableNotify.textContent = '提醒已開啟';
+    ui.notifyState.textContent = '這個瀏覽器沒有通知。清單上的狀態仍會顯示。';
   } else if (support === 'denied') {
-    ui.notifyState.textContent = '通知被封鎖了。可以到瀏覽器設定裡允許；清單上的狀態不受影響。';
-    ui.enableNotify.textContent = '通知已被封鎖';
+    ui.notifyState.textContent = '通知被封鎖。可到瀏覽器設定允許。';
+  } else if (support === 'granted' && !on) {
+    ui.notifyState.textContent = '已關閉。清單上的狀態仍會顯示。';
   } else {
-    ui.notifyState.textContent = '尚未詢問權限。拒絕也沒關係，卡片上的「即將到期」和「已過期」一樣看得到。';
-    ui.enableNotify.textContent = '開啟到期提醒';
+    ui.notifyState.textContent = '打開食材櫃時，通知即將到期或已過期的食材。';
   }
 }
 
@@ -721,25 +733,118 @@ async function enableNotifications() {
   const support = notificationSupport();
   if (support === 'unsupported') {
     toast('此瀏覽器不支援通知，清單上的狀態仍會顯示。');
+    refreshNotifyCopy();
     return;
   }
   if (support === 'denied') {
     toast('通知被封鎖了。清單上的狀態仍會顯示。');
+    refreshNotifyCopy();
     return;
   }
-  if (support === 'granted') {
+  if (support === 'granted' && remindersEnabled()) {
     toast('提醒已開啟。打開食材櫃時會通知需要留意的食材。');
     await checkReminders(state.items, todayISO(), { icon: iconUrl });
     refreshNotifyCopy();
     return;
   }
-  const result = await requestNotificationPermission();
+  if (support !== 'granted') {
+    const result = await requestNotificationPermission();
+    if (result !== 'granted') {
+      refreshNotifyCopy();
+      toast('沒有通知權限。清單上的狀態標示仍會顯示。');
+      return;
+    }
+  }
+  setRemindersEnabled(true);
   refreshNotifyCopy();
-  if (result === 'granted') {
-    toast('已開啟提醒。');
-    await checkReminders(state.items, todayISO(), { icon: iconUrl });
-  } else {
-    toast('沒有通知權限。清單上的狀態標示仍會顯示。');
+  toast('已開啟提醒。');
+  await checkReminders(state.items, todayISO(), { icon: iconUrl });
+}
+
+async function onNotifySwitch() {
+  if (remindersEnabled()) {
+    setRemindersEnabled(false);
+    refreshNotifyCopy();
+    return;
+  }
+  await enableNotifications();
+}
+
+let editorsKey = '';
+let editorsTicket = 0;
+
+function paintEditors(editors) {
+  const writers = editors.filter((row) => row.removable);
+  ui.editorNote.textContent = writers.length ? '已分享為編輯者' : '還沒有其他編輯者。';
+  ui.editorList.hidden = editors.length === 0;
+  ui.editorList.replaceChildren(...editors.map((row) => {
+    const label = row.email || row.name;
+    const who = row.self && row.role === 'owner' ? `${label}（你）` : label;
+    if (!row.removable) {
+      return el('li', { class: 'editor-row' }, [
+        el('span', { class: 'editor-mail' }, who),
+        el('span', { class: 'editor-role' }, '擁有者'),
+      ]);
+    }
+    return el('li', { class: 'editor-row' }, [
+      el('span', { class: 'editor-mail' }, who),
+      el('button', {
+        type: 'button',
+        class: 'editor-remove',
+        'data-permission': row.id,
+        'data-email': label,
+      }, '取消分享'),
+    ]);
+  }));
+}
+
+function scheduleEditors(force = false) {
+  if (!ui.moreDialog.open) return;
+  const account = getSessionStatus();
+  const key = `${account.configured}:${account.user?.email || ''}:${account.activeHouseholdId || ''}`;
+  if (!force && key === editorsKey) return;
+  editorsKey = key;
+  void loadEditors();
+}
+
+async function loadEditors() {
+  const ticket = ++editorsTicket;
+  const account = getSessionStatus();
+  const signedIn = Boolean(account.configured && account.user);
+  ui.editorBlock.hidden = !signedIn;
+  ui.inviteFields.hidden = !signedIn || !account.activeHouseholdId;
+  ui.editorList.replaceChildren();
+  ui.editorList.hidden = true;
+  if (!signedIn) {
+    ui.editorNote.textContent = '';
+    return;
+  }
+  if (!account.activeHouseholdId) {
+    ui.editorNote.textContent = '還沒有資料夾。建立或加入後，這裡會列出已分享的編輯者。';
+    return;
+  }
+  ui.editorNote.textContent = '正在讀取已分享的編輯者…';
+  try {
+    const editors = await listEditors();
+    if (ticket !== editorsTicket) return;
+    paintEditors(editors);
+  } catch (error) {
+    if (ticket !== editorsTicket) return;
+    ui.editorNote.textContent = error.message || '讀不到已分享的編輯者。';
+  }
+}
+
+async function removeEditor(permissionId, email) {
+  const who = email || '這個帳號';
+  const ok = await ask(`取消與「${who}」共用這個資料夾？`, '取消分享', '取消分享');
+  if (!ok) return;
+  try {
+    await unshareEditor(permissionId);
+    toast('已取消分享');
+    await loadEditors();
+  } catch (error) {
+    ui.editorNote.textContent = error.message;
+    toast(error.message);
   }
 }
 
@@ -840,15 +945,22 @@ function bind() {
   ui.notifyBtn.addEventListener('click', enableNotifications);
   ui.moreBtn.addEventListener('click', () => {
     refreshNotifyCopy();
+    editorsKey = '';
     ui.moreDialog.showModal();
     syncModal();
+    scheduleEditors(true);
   });
   ui.moreClose.addEventListener('click', () => {
     ui.moreDialog.close();
     syncModal();
   });
   ui.moreDialog.addEventListener('close', syncModal);
-  ui.enableNotify.addEventListener('click', enableNotifications);
+  ui.enableNotify.addEventListener('click', onNotifySwitch);
+  ui.editorList.addEventListener('click', (event) => {
+    const button = event.target.closest('.editor-remove');
+    if (!button) return;
+    removeEditor(button.dataset.permission, button.dataset.email);
+  });
   ui.exportBtn.addEventListener('click', exportBackup);
   ui.importBtn.addEventListener('click', () => ui.importInput.click());
   ui.importInput.addEventListener('change', () => {
@@ -887,10 +999,24 @@ function bind() {
         ' ',
         el('a', { href: link, target: '_blank', rel: 'noreferrer' }, link),
       );
+      if (shared) loadEditors();
     }).catch((error) => toast(error.message));
   });
   ui.syncNow.addEventListener('click', () => {
-    syncNow().then(() => toast(getSessionStatus().message || '已同步'));
+    syncNow().then(() => {
+      const account = getSessionStatus();
+      const detail = syncDetailMessage(account.message);
+      const label = syncStatusLabel({
+        configured: account.configured,
+        user: account.user,
+        activeHouseholdId: account.activeHouseholdId,
+        syncing: account.syncing,
+        message: account.message,
+        online: navigator.onLine,
+        role: account.role,
+      }).label;
+      toast(detail || label);
+    });
   });
   ui.migrateYes.addEventListener('click', () => {
     importLocalPantry().then(() => toast('已匯入這個資料夾')).catch((error) => toast(error.message));
@@ -962,8 +1088,14 @@ function cacheElements() {
     toast: 'toast',
     cloudSetup: 'cloud-setup',
     accountStatus: 'account-status',
+    accountDetail: 'account-detail',
     accountSignedOut: 'account-signed-out',
     accountSignedIn: 'account-signed-in',
+    accountActions: 'account-actions',
+    moreSyncStatus: 'more-sync-status',
+    createFolderCard: 'create-folder-card',
+    joinFolderCard: 'join-folder-card',
+    inviteCard: 'invite-card',
     googleSignIn: 'google-sign-in',
     householdSelect: 'household-select',
     householdName: 'household-name',
@@ -973,6 +1105,10 @@ function cacheElements() {
     shareEmail: 'share-email',
     inviteHousehold: 'invite-household',
     inviteResult: 'invite-result',
+    inviteFields: 'invite-fields',
+    editorBlock: 'editor-block',
+    editorNote: 'editor-note',
+    editorList: 'editor-list',
     syncNow: 'sync-now',
     signOutBtn: 'sign-out',
     migrateBanner: 'migrate-banner',

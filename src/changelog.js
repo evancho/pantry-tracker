@@ -1,6 +1,21 @@
 /** Newest release first. Version numbers match package.json, without the build datecode. */
 export const CHANGELOG = Object.freeze([
   {
+    version: '2.1.4',
+    date: '2026-09-28',
+    summary: '「更多」裡的家庭同步分成四張卡片。',
+    changes: Object.freeze([
+      '目前狀態放帳號、資料夾切換、同步狀態、立即同步與登出。',
+      '建立新資料夾、加入家人資料夾、邀請家人分開，不再擠在同一張卡片。',
+      '邀請家人時會註明對方要能使用該 Google 帳號；應用程式若在測試，也要加為測試使用者。',
+      '邀請家人會列出已分享為編輯者的 Google 帳號，可取消分享。擁有者不會出現成可刪除的編輯者。',
+      '「更多」不再重複顯示「已與 Google 雲端硬碟同步」。',
+      '到期提醒改成標題旁的開關，說明縮短。',
+      '備份的匯入、匯出改到標題旁邊，說明縮短。',
+      '更新紀錄的入口改到標題旁邊。',
+    ]),
+  },
+  {
     version: '2.1.3',
     date: '2026-09-28',
     summary: '「更多」改回蓋住清單的全螢幕面板。',
