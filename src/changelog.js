@@ -1,6 +1,16 @@
 /** Newest release first. Version numbers match package.json, without the build datecode. */
 export const CHANGELOG = Object.freeze([
   {
+    version: '2.1.6',
+    date: '2026-09-28',
+    summary: '關掉再開仍記得 Google 帳號，再按一次即可登入。',
+    changes: Object.freeze([
+      '無法自動恢復登入時，仍顯示上次的帳號，不會被當成已登出。',
+      '再按「使用 Google 登入」會先試著直接恢復，不行才選擇帳號。',
+      '只有按「登出」才會忘掉帳號。這台裝置的清單與資料夾仍可使用。',
+    ]),
+  },
+  {
     version: '2.1.5',
     date: '2026-09-28',
     summary: '目前狀態的同步、立即同步與登出收到標題旁邊。',
