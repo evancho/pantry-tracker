@@ -1,6 +1,17 @@
 /** Newest release first. Version numbers match package.json, without the build datecode. */
 export const CHANGELOG = Object.freeze([
   {
+    version: '2.1.3',
+    date: '2026-09-28',
+    summary: '「更多」改回蓋住清單的全螢幕面板。',
+    changes: Object.freeze([
+      '點「更多」會打開獨立畫面，不再跟食材清單出現在同一卷軸。',
+      '關閉後回到原本的清單。',
+      '同步狀態改放在標題「食材櫃」右邊，不再單獨佔清單上方一行。',
+      '拿掉標題左邊的「櫃」圖示。「提醒」與「更多」改成同一組文字按鈕。',
+    ]),
+  },
+  {
     version: '2.1.2',
     date: '2026-09-28',
     summary: '首頁看起來更精緻，用法維持不變。',
