@@ -1,6 +1,16 @@
 /** Newest release first. Version numbers match package.json, without the build datecode. */
 export const CHANGELOG = Object.freeze([
   {
+    version: '1.2.1',
+    date: '2026-09-28',
+    summary: '搜尋、清單模式與排序收成較矮的工具列，已過期更醒目。',
+    changes: Object.freeze([
+      '名稱搜尋改成一列，只留輸入框與「搜尋名稱」提示，不再另佔一行標題。',
+      '「標準／簡易」與排序選單放在同一列。搜尋、模式與排序的作用不變。',
+      '「已過期」在標準模式與簡易模式都用較深的底色、邊線與標示。即將到期仍維持較輕的提示。',
+    ]),
+  },
+  {
     version: '1.2.0',
     date: '2026-09-28',
     summary: '清單可切換簡易模式，並修好拍照辨識與確認視窗。',

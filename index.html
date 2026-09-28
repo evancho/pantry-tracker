@@ -42,24 +42,21 @@
 
     <main id="view-pantry" class="wrap">
       <section class="filters" aria-label="搜尋與排序">
-        <div class="search-field">
-          <label for="name-filter">搜尋名稱</label>
-          <div class="search-row">
-            <input id="name-filter" type="search" placeholder="輸入食材名稱" autocomplete="off" autocorrect="off" spellcheck="false" enterkeyhint="search" aria-controls="list" />
-            <button type="button" id="name-filter-clear" class="text-btn" hidden>清除</button>
-          </div>
+        <div class="search-row">
+          <label class="visually-hidden" for="name-filter">搜尋名稱</label>
+          <input id="name-filter" type="search" placeholder="搜尋名稱" autocomplete="off" autocorrect="off" spellcheck="false" enterkeyhint="search" aria-controls="list" />
+          <button type="button" id="name-filter-clear" class="text-btn" hidden>清除</button>
         </div>
-        <div class="density-field">
-          <span id="density-label">清單</span>
-          <div class="density-toggle" role="group" aria-labelledby="density-label">
-            <button type="button" id="density-standard" aria-pressed="true">標準模式</button>
-            <button type="button" id="density-compact" aria-pressed="false">簡易模式</button>
+        <div class="toolbar-row">
+          <div class="density-toggle" role="group" aria-label="清單模式">
+            <button type="button" id="density-standard" aria-pressed="true" aria-label="標準模式">標準</button>
+            <button type="button" id="density-compact" aria-pressed="false" aria-label="簡易模式">簡易</button>
           </div>
+          <label class="sort-field">
+            <span class="visually-hidden">排序</span>
+            <select id="sort" aria-label="排序"></select>
+          </label>
         </div>
-        <label class="sort-field">
-          <span>排序</span>
-          <select id="sort"></select>
-        </label>
       </section>
       <div id="list" class="list" role="list"></div>
       <section id="empty" class="empty" hidden>
