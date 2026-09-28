@@ -381,7 +381,11 @@ function openEditor(item) {
   showPreview();
   ui.editor.showModal();
   syncModal();
-  ui.name.focus();
+  const active = document.activeElement;
+  if (active instanceof HTMLElement && ui.editor.contains(active) && active !== ui.editor) {
+    active.blur();
+  }
+  ui.editor.focus();
 }
 
 function closeEditor() {

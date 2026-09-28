@@ -563,6 +563,10 @@ dialog.sheet {
   box-shadow: var(--shadow);
 }
 
+#editor:focus {
+  outline: none;
+}
+
 dialog.sheet::backdrop { background: rgba(28, 25, 21, 0.48); }
 
 #editor form {
