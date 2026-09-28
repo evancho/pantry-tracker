@@ -32,15 +32,15 @@
       </div>
       <header class="topbar wrap">
         <div class="brand">
-          <span class="brand-mark" aria-hidden="true">櫃</span>
-          <div>
+          <div class="brand-line">
             <h1>食材櫃</h1>
-            <p id="summary" class="summary">資料只留在這台裝置</p>
+            <p id="sync-status" class="sync-status" role="status" data-state="local">只在這台裝置</p>
           </div>
+          <p id="summary" class="summary">資料只留在這台裝置</p>
         </div>
-        <div class="top-actions">
-          <button type="button" id="notify-btn" class="icon-btn">提醒</button>
-          <button type="button" id="more-btn" class="icon-btn" aria-haspopup="dialog">更多</button>
+        <div class="top-actions" role="group" aria-label="提醒與更多">
+          <button type="button" id="notify-btn" class="header-btn">提醒</button>
+          <button type="button" id="more-btn" class="header-btn" aria-haspopup="dialog">更多</button>
         </div>
       </header>
       <nav class="tabs wrap" aria-label="功能">
@@ -69,7 +69,6 @@
           </label>
         </div>
       </section>
-      <p id="sync-status" class="sync-status" role="status" data-state="local">只在這台裝置</p>
       <div id="list" class="list" role="list"></div>
       <section id="empty" class="empty" hidden>
         <div class="empty-mark" aria-hidden="true">櫃</div>
