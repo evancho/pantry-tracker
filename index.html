@@ -168,38 +168,52 @@
       </div>
       <div class="sheet-body">
         <section class="more-block">
-          <h3>家庭與同步</h3>
-          <p id="account-status" class="hint">尚未登入。不登入時，食材只留在這台裝置。</p>
+          <h3>目前狀態</h3>
+          <p id="account-status" class="account-who">尚未登入。不登入時，食材只留在這台裝置。</p>
           <p id="cloud-setup" class="hint" hidden>這個網站還沒有 Google 登入設定。建置時放入 OAuth client id 後，食材與照片才會自動同步到 Google 雲端硬碟。沒有設定時，食材仍只留在這台裝置。</p>
-          <div id="account-signed-out">
-            <button type="button" id="google-sign-in" class="btn btn-primary">使用 Google 登入</button>
-          </div>
           <div id="account-signed-in" hidden>
             <label class="field">
               <span>目前資料夾</span>
               <select id="household-select"></select>
             </label>
-            <label class="field">
-              <span>新資料夾名稱</span>
-              <input id="household-name" maxlength="40" placeholder="例如：家裡的食材櫃" />
-            </label>
-            <div class="photo-actions">
-              <button type="button" id="create-household" class="btn btn-primary">建立雲端硬碟資料夾</button>
-              <button type="button" id="sync-now" class="btn">立即同步</button>
-            </div>
-            <label class="field">
-              <span>共用資料夾連結</span>
-              <input id="folder-link" autocomplete="off" placeholder="貼上家人分享的資料夾連結" />
-            </label>
-            <button type="button" id="join-household" class="btn">使用這個資料夾</button>
-            <label class="field">
-              <span>家人的 Google 帳號</span>
-              <input id="share-email" type="email" autocomplete="off" inputmode="email" placeholder="name@gmail.com" />
-            </label>
-            <button type="button" id="invite-household" class="btn">分享為編輯者</button>
-            <p id="invite-result" class="hint invite-link"></p>
+          </div>
+          <p id="more-sync-status" class="sync-status" role="status" data-state="local">只在這台裝置</p>
+          <p id="account-detail" class="hint" hidden></p>
+          <div id="account-signed-out">
+            <button type="button" id="google-sign-in" class="btn btn-primary">使用 Google 登入</button>
+          </div>
+          <div id="account-actions" hidden>
+            <button type="button" id="sync-now" class="btn btn-primary">立即同步</button>
             <button type="button" id="sign-out" class="btn btn-quiet">登出</button>
           </div>
+        </section>
+        <section id="create-folder-card" class="more-block" hidden>
+          <h3>建立新資料夾</h3>
+          <p class="hint">在你的 Google 雲端硬碟新增一個食材櫃。</p>
+          <label class="field">
+            <span>資料夾名稱</span>
+            <input id="household-name" maxlength="40" placeholder="例如：家裡的食材櫃" />
+          </label>
+          <button type="button" id="create-household" class="btn btn-primary">建立資料夾</button>
+        </section>
+        <section id="join-folder-card" class="more-block" hidden>
+          <h3>加入家人資料夾</h3>
+          <p class="hint">貼上家人分享給你的雲端硬碟連結。</p>
+          <label class="field">
+            <span>資料夾連結</span>
+            <input id="folder-link" autocomplete="off" placeholder="貼上資料夾連結" />
+          </label>
+          <button type="button" id="join-household" class="btn btn-primary">使用這個資料夾</button>
+        </section>
+        <section id="invite-card" class="more-block" hidden>
+          <h3>邀請家人</h3>
+          <p class="hint">對方要能登入這個 Google 帳號。應用程式若還在測試，請先把對方加為測試使用者。</p>
+          <label class="field">
+            <span>家人的 Google 帳號</span>
+            <input id="share-email" type="email" autocomplete="off" inputmode="email" placeholder="name@gmail.com" />
+          </label>
+          <button type="button" id="invite-household" class="btn btn-primary">分享為編輯者</button>
+          <p id="invite-result" class="hint invite-link"></p>
         </section>
         <section class="more-block">
           <h3>到期提醒</h3>

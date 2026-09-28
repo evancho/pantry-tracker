@@ -920,8 +920,30 @@ dialog.sheet::backdrop { background: rgba(28, 25, 21, 0.48); }
 }
 
 .more-block h3 {
+  margin: 0;
   font-size: 1.05rem;
   letter-spacing: 0.02em;
+}
+
+.account-who {
+  margin: 0;
+  color: var(--ink);
+  font-size: 0.98rem;
+  font-weight: 750;
+  line-height: 1.45;
+}
+
+#more-dialog .sync-status { margin: 0; }
+
+#account-actions {
+  display: grid;
+  gap: 8px;
+}
+
+#sign-out {
+  width: 100%;
+  justify-self: stretch;
+  border-color: transparent;
 }
 
 .more-block p { margin: 0; line-height: 1.55; }

@@ -330,38 +330,52 @@ function paintSyncStatus(account = getSessionStatus()) {
     online: navigator.onLine,
     role: account.role,
   });
-  ui.syncStatus.textContent = state.label;
-  ui.syncStatus.dataset.state = state.key;
-  ui.syncStatus.title = account.message || state.label;
+  for (const node of [ui.syncStatus, ui.moreSyncStatus]) {
+    if (!node) continue;
+    node.textContent = state.label;
+    node.dataset.state = state.key;
+    node.title = account.message || state.label;
+  }
 }
 
 function renderAccount(account = getSessionStatus()) {
+  const signedIn = Boolean(account.configured && account.user);
   ui.cloudSetup.hidden = account.configured;
   ui.accountSignedOut.hidden = !account.configured || Boolean(account.user);
-  ui.accountSignedIn.hidden = !account.configured || !account.user;
-  const bits = [];
+  ui.accountSignedIn.hidden = !signedIn;
+  ui.accountActions.hidden = !signedIn;
+  ui.createFolderCard.hidden = !signedIn;
+  ui.joinFolderCard.hidden = !signedIn;
+  ui.inviteCard.hidden = !signedIn;
   if (!account.configured) {
-    bits.push(account.activeName
+    ui.accountStatus.textContent = account.activeName
       ? `尚未設定 Google 登入。這台裝置仍顯示「${account.activeName}」。`
-      : '尚未設定 Google 登入。食材只留在這台裝置。');
+      : '尚未設定 Google 登入。食材只留在這台裝置。';
   } else if (!account.user && account.activeName) {
-    bits.push(`尚未登入。這台裝置仍顯示「${account.activeName}」。登入後會再同步。`);
-  } else if (!account.user) bits.push('尚未登入。不登入時，食材只留在這台裝置。');
-  else if (!account.activeName) bits.push(`已登入 ${account.user.email || account.user.displayName}。請建立或貼上雲端硬碟資料夾。`);
-  else {
+    ui.accountStatus.textContent = `尚未登入。這台裝置仍顯示「${account.activeName}」。登入後會再同步。`;
+  } else if (!account.user) {
+    ui.accountStatus.textContent = '尚未登入。不登入時，食材只留在這台裝置。';
+  } else if (!account.activeName) {
+    ui.accountStatus.textContent = `已登入 ${account.user.email || account.user.displayName}。請建立新資料夾，或加入家人的資料夾。`;
+  } else {
     const role = roleLabel(account.role);
-    bits.push(`${account.user.email || account.user.displayName} · ${account.activeName}${role ? ` · ${role}` : ''}`);
+    const who = account.user.email || account.user.displayName;
+    ui.accountStatus.textContent = role ? `${who} · ${role}` : who;
   }
-  if (account.syncing) bits.push('同步中…');
-  else if (account.message) bits.push(account.message);
-  ui.accountStatus.textContent = bits.join(' ');
   paintSyncStatus(account);
+  const message = account.syncing ? '' : String(account.message || '');
+  const syncedLabel = ui.moreSyncStatus?.textContent === '已同步';
+  const redundant = syncedLabel && message === '已與 Google 雲端硬碟同步';
+  ui.accountDetail.hidden = !message || redundant;
+  ui.accountDetail.textContent = message;
   const signature = `${account.households.map((row) => `${row.id}:${row.role}:${row.name}`).join('|')}:${account.activeHouseholdId || ''}`;
   if (ui.householdSelect.dataset.signature !== signature) {
     ui.householdSelect.dataset.signature = signature;
-    ui.householdSelect.replaceChildren(...account.households.map((row) => (
+    const options = account.households.map((row) => (
       el('option', { value: row.id }, `${row.name}（${roleLabel(row.role)}）`)
-    )));
+    ));
+    if (!options.length) options.push(el('option', { value: '' }, '尚未選擇'));
+    ui.householdSelect.replaceChildren(...options);
     if (account.activeHouseholdId) ui.householdSelect.value = account.activeHouseholdId;
   }
   const showMigrate = Boolean(account.user && account.activeHouseholdId && account.pendingLocal > 0 && !account.importSkipped);
@@ -962,8 +976,14 @@ function cacheElements() {
     toast: 'toast',
     cloudSetup: 'cloud-setup',
     accountStatus: 'account-status',
+    accountDetail: 'account-detail',
     accountSignedOut: 'account-signed-out',
     accountSignedIn: 'account-signed-in',
+    accountActions: 'account-actions',
+    moreSyncStatus: 'more-sync-status',
+    createFolderCard: 'create-folder-card',
+    joinFolderCard: 'join-folder-card',
+    inviteCard: 'invite-card',
     googleSignIn: 'google-sign-in',
     householdSelect: 'household-select',
     householdName: 'household-name',
