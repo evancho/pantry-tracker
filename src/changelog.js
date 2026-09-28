@@ -1,6 +1,15 @@
 /** Newest release first. Version numbers match package.json, without the build datecode. */
 export const CHANGELOG = Object.freeze([
   {
+    version: '2.1.5',
+    date: '2026-09-28',
+    summary: '目前狀態的同步、立即同步與登出收到標題旁邊。',
+    changes: Object.freeze([
+      '短狀態、立即同步與登出改到「目前狀態」標題右側。',
+      '帳號與目前資料夾仍留在卡片裡。螢幕較窄時，這三項可換到下一列。',
+    ]),
+  },
+  {
     version: '2.1.4',
     date: '2026-09-28',
     summary: '「更多」裡的家庭同步分成四張卡片。',
