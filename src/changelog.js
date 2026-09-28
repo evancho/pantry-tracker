@@ -1,6 +1,15 @@
 /** Newest release first. Version numbers match package.json, without the build datecode. */
 export const CHANGELOG = Object.freeze([
   {
+    version: '1.2.1',
+    date: '2026-09-28',
+    summary: '搜尋、清單模式與排序收成較矮的工具列。',
+    changes: Object.freeze([
+      '名稱搜尋改成一列，只留輸入框與「搜尋名稱」提示，不再另佔一行標題。',
+      '「標準／簡易」與排序選單放在同一列。搜尋、模式與排序的作用不變。',
+    ]),
+  },
+  {
     version: '1.2.0',
     date: '2026-09-28',
     summary: '清單可切換簡易模式，並修好拍照辨識與確認視窗。',
