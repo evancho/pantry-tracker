@@ -15,7 +15,7 @@ import {
   uploadPhotoFile,
   writeRemoteItem,
 } from './drive.js';
-import { driveFolderLink, mergeHouseholdItems, migrationCandidates, parseDriveFolderId } from './sync.js';
+import { driveFolderLink, mergeHouseholdItems, migrationCandidates, parseDriveFolderId, scopeForList } from './sync.js';
 
 const SKIP_PREFIX = 'pantry-tracker-skip-import:';
 const USER_KEY = 'pantry-tracker-google-user';
@@ -73,7 +73,7 @@ export function getSessionStatus() {
 }
 
 export function activeHouseholdId() {
-  return status.user ? status.activeHouseholdId : null;
+  return scopeForList({ activeHouseholdId: status.activeHouseholdId });
 }
 
 async function refreshPending() {
@@ -134,7 +134,9 @@ export function startSession({ onStatus: statusHandler, onSynced: syncedHandler 
     })
     .catch(() => {
       rememberUser(null);
+      status.message = '請再按一次「使用 Google 登入」。這台裝置上的清單仍可查看與修改。';
       emit();
+      onSynced();
     });
 }
 

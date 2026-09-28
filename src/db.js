@@ -1,3 +1,5 @@
+import { itemsInScope } from './sync.js';
+
 const DB_NAME = 'pantry-tracker';
 const DB_VERSION = 2;
 
@@ -70,9 +72,7 @@ export async function loadAll(householdId = null) {
   const items = await requestToPromise(db.transaction('items').objectStore('items').getAll());
   const photos = await requestToPromise(db.transaction('photos').objectStore('photos').getAll());
   const photoMap = new Map(photos.map((photo) => [photo.id, photo.blob]));
-  const scope = householdId || null;
-  return items
-    .filter((item) => !item.deletedAt && (item.householdId || null) === scope)
+  return itemsInScope(items, householdId)
     .map((item) => ({
       ...item,
       photoBlob: item.photoId ? photoMap.get(item.photoId) || null : null,

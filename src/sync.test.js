@@ -1,8 +1,11 @@
 import { describe, expect, it } from 'vitest';
 import {
+  itemsInScope,
   lastWriteWins,
   mergeHouseholdItems,
   migrationCandidates,
+  scopeForList,
+  syncStatusLabel,
 } from './sync.js';
 
 describe('last-write-wins merge', () => {
@@ -46,6 +49,55 @@ describe('last-write-wins merge', () => {
     expect(plan.pushIds).toEqual([]);
     expect(plan.items[0].photoBlob).toBe('blob');
     expect(lastWriteWins({ updatedAt: 10 }, { updatedAt: 10 })).toBe('tie');
+  });
+});
+
+describe('list without a Google session', () => {
+  it('shows household rows saved on this device when there is no user', () => {
+    const items = [
+      { id: 'milk', name: '鮮奶', householdId: 'folder-1', createdAt: 2 },
+      { id: 'tofu', name: '豆腐', householdId: null, createdAt: 1 },
+      { id: 'gone', name: '已刪', householdId: 'folder-1', deletedAt: 9, createdAt: 3 },
+    ];
+    const scope = scopeForList({ user: null, activeHouseholdId: 'folder-1' });
+    expect(scope).toBe('folder-1');
+    expect(itemsInScope(items, scope).map((item) => item.name)).toEqual(['鮮奶']);
+  });
+
+  it('keeps unbound device rows when no folder was chosen', () => {
+    const items = [
+      { id: 'milk', name: '鮮奶', householdId: 'folder-1' },
+      { id: 'tofu', name: '豆腐' },
+    ];
+    expect(itemsInScope(items, scopeForList({ user: null, activeHouseholdId: null })).map((item) => item.name)).toEqual(['豆腐']);
+    const moved = migrationCandidates(items, 'folder-1', 30);
+    expect(moved.map((item) => item.id)).toEqual(['tofu']);
+  });
+});
+
+describe('homepage sync status', () => {
+  const signedIn = {
+    configured: true,
+    user: { email: 'family@example.com' },
+    activeHouseholdId: 'folder-1',
+    online: true,
+  };
+
+  it('uses a short label for offline, syncing, login, folder, and synced', () => {
+    expect(syncStatusLabel({ ...signedIn, online: false }).label).toBe('離線');
+    expect(syncStatusLabel({ ...signedIn, online: false, syncing: true }).label).toBe('離線');
+    expect(syncStatusLabel({ ...signedIn, syncing: true }).label).toBe('同步中');
+    expect(syncStatusLabel({ ...signedIn, user: null }).label).toBe('需登入才能同步');
+    expect(syncStatusLabel({
+      configured: true,
+      user: { email: 'family@example.com' },
+      activeHouseholdId: null,
+      online: true,
+    }).label).toBe('尚未設定資料夾');
+    expect(syncStatusLabel({ ...signedIn, message: '已與 Google 雲端硬碟同步' }).label).toBe('已同步');
+    expect(syncStatusLabel({ configured: false, online: true }).label).toBe('只在這台裝置');
+    expect(syncStatusLabel({ ...signedIn, message: '沒有這個資料夾的編輯權限' }).label).toBe('同步未完成');
+    expect(syncStatusLabel({ ...signedIn, role: 'reader', message: '已從 Google 雲端硬碟更新' }).label).toBe('只能檢視');
   });
 });
 
