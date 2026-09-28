@@ -215,6 +215,35 @@ button { cursor: pointer; }
   padding: 10px 0 4px;
 }
 
+.sync-status {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin: 2px 0 8px;
+  color: var(--muted);
+  font-size: 0.82rem;
+  font-weight: 700;
+  line-height: 1.2;
+}
+
+.sync-status::before {
+  content: '';
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: currentColor;
+  flex: 0 0 auto;
+}
+
+.sync-status[data-state="synced"] { color: var(--green); }
+.sync-status[data-state="syncing"],
+.sync-status[data-state="login"],
+.sync-status[data-state="folder"],
+.sync-status[data-state="reader"],
+.sync-status[data-state="pending"] { color: var(--amber); }
+.sync-status[data-state="offline"],
+.sync-status[data-state="error"] { color: var(--red); }
+
 .visually-hidden {
   position: absolute;
   width: 1px;

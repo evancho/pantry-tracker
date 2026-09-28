@@ -15,7 +15,7 @@ import {
   switchHousehold,
   syncNow,
 } from './session.js';
-import { roleLabel } from './sync.js';
+import { roleLabel, syncStatusLabel } from './sync.js';
 import {
   AREAS,
   SORTS,
@@ -320,6 +320,21 @@ function render() {
   void updateAppBadge(counts['即將到期'] + counts['已過期']);
 }
 
+function paintSyncStatus(account = getSessionStatus()) {
+  const state = syncStatusLabel({
+    configured: account.configured,
+    user: account.user,
+    activeHouseholdId: account.activeHouseholdId,
+    syncing: account.syncing,
+    message: account.message,
+    online: navigator.onLine,
+    role: account.role,
+  });
+  ui.syncStatus.textContent = state.label;
+  ui.syncStatus.dataset.state = state.key;
+  ui.syncStatus.title = account.message || state.label;
+}
+
 function renderAccount(account = getSessionStatus()) {
   ui.cloudSetup.hidden = account.configured;
   ui.accountSignedOut.hidden = !account.configured || Boolean(account.user);
@@ -340,6 +355,7 @@ function renderAccount(account = getSessionStatus()) {
   if (account.syncing) bits.push('同步中…');
   else if (account.message) bits.push(account.message);
   ui.accountStatus.textContent = bits.join(' ');
+  paintSyncStatus(account);
   const signature = `${account.households.map((row) => `${row.id}:${row.role}:${row.name}`).join('|')}:${account.activeHouseholdId || ''}`;
   if (ui.householdSelect.dataset.signature !== signature) {
     ui.householdSelect.dataset.signature = signature;
@@ -885,6 +901,7 @@ function bind() {
 function cacheElements() {
   const ids = {
     summary: 'summary',
+    syncStatus: 'sync-status',
     notifyBtn: 'notify-btn',
     moreBtn: 'more-btn',
     tabPantry: 'tab-pantry',
@@ -988,6 +1005,9 @@ export function startApp() {
     state.error = 'failed';
     render();
   });
+
+  window.addEventListener('online', () => renderAccount());
+  window.addEventListener('offline', () => renderAccount());
 
   document.addEventListener('visibilitychange', () => {
     if (document.visibilityState !== 'visible' || !state.ready) return;

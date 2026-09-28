@@ -78,6 +78,27 @@ export function scopeForList({ activeHouseholdId } = {}) {
   return activeHouseholdId || null;
 }
 
+export function syncStatusLabel({
+  configured = false,
+  user = null,
+  activeHouseholdId = null,
+  syncing = false,
+  message = '',
+  online = true,
+  role = '',
+} = {}) {
+  if (!online) return { key: 'offline', label: '離線' };
+  if (syncing) return { key: 'syncing', label: '同步中' };
+  if (!configured) return { key: 'local', label: '只在這台裝置' };
+  if (!user) return { key: 'login', label: '需登入才能同步' };
+  if (!activeHouseholdId) return { key: 'folder', label: '尚未設定資料夾' };
+  const text = String(message || '');
+  if (role === 'reader' || /只能檢視/.test(text)) return { key: 'reader', label: '只能檢視' };
+  if (/已與 Google 雲端硬碟同步|已從 Google 雲端硬碟更新/.test(text)) return { key: 'synced', label: '已同步' };
+  if (text) return { key: 'error', label: '同步未完成' };
+  return { key: 'pending', label: '尚未同步' };
+}
+
 export function itemsInScope(items, scope) {
   const target = scope || null;
   return (items || []).filter((item) => item && !item.deletedAt && (item.householdId || null) === target);

@@ -7,6 +7,7 @@ describe('changelog', () => {
     expect(CHANGELOG[0].version).toBe(pkg.version);
     expect(CHANGELOG.map((entry) => entry.version)).toEqual(['2.1.1', '2.1.0', '2.0.0', '1.2.1', '1.2.0', '1.1.0', '1.0.0']);
     expect(CHANGELOG[0].changes.join('\n')).toMatch(/尚未登入/);
+    expect(CHANGELOG[0].changes.join('\n')).toMatch(/已同步/);
     const drive = CHANGELOG.find((entry) => entry.version === '2.1.0');
     expect(drive.summary).toMatch(/家人/);
     expect(drive.changes.join('\n')).toMatch(/Google/);
