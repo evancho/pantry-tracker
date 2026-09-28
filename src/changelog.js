@@ -1,6 +1,17 @@
 /** Newest release first. Version numbers match package.json, without the build datecode. */
 export const CHANGELOG = Object.freeze([
   {
+    version: '2.1.2',
+    date: '2026-09-28',
+    summary: '首頁看起來更精緻，用法維持不變。',
+    changes: Object.freeze([
+      '標題、分頁、搜尋、同步狀態與新增按鈕的字級、間距和圓角更一致。',
+      '食材卡片與簡易列的分隔更清楚。已過期仍用淺紅底與左邊線，顏色不更刺眼。',
+      '有照片的標準卡片一併調整。搜尋、標準／簡易、排序、同步狀態、提醒與更多的操作不變。',
+      '「更多」裡的登入、資料夾、分享、提醒、備份與更新紀錄，改成與首頁相同的卡片和按鈕。',
+    ]),
+  },
+  {
     version: '2.1.1',
     date: '2026-09-28',
     summary: '關掉再開，已同步到這台裝置的食材仍會出現。',
