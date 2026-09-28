@@ -14,11 +14,21 @@ import {
   clearGoogleToken,
   ensureGoogleAccess,
   requestGoogleAccess,
+  readLineSubscribersFile,
   shareFolderWriter,
   signOutGoogle,
   uploadPhotoFile,
+  writeLineSubscribersFile,
   writeRemoteItem,
 } from './drive.js';
+import {
+  addLineSubscriber,
+  normalizeLineUserId,
+  parseLineSubscribers,
+  removeLineSubscriber,
+  serializeLineSubscribers,
+  setLineEnabled,
+} from './line-subscribers.js';
 import { buttonAuthSteps, isUserCancel, reauthCopy, silentAuthPrompt } from './auth-restore.js';
 import { driveFolderLink, mergeHouseholdItems, migrationCandidates, parseDriveFolderId, scopeForList } from './sync.js';
 
@@ -326,6 +336,48 @@ export function shareFolder(email) {
       link: current.folderLink,
       shared: Boolean(address),
     };
+  });
+}
+
+async function currentLineDoc() {
+  requireAuthorized();
+  if (!status.activeHouseholdId) throw new Error('請先建立或加入資料夾。LINE 綁定會存在這個雲端硬碟資料夾。');
+  await ensureGoogleAccess({ prompt: '', hint: status.user?.email || '' });
+  return parseLineSubscribers(await readLineSubscribersFile(status.activeHouseholdId));
+}
+
+async function storeLineDoc(doc) {
+  await writeLineSubscribersFile(status.activeHouseholdId, serializeLineSubscribers(doc));
+  return doc;
+}
+
+export function loadLineBinding() {
+  return guard(async () => currentLineDoc());
+}
+
+export function saveLineSubscriber({ userId, label } = {}) {
+  return guard(async () => {
+    const id = normalizeLineUserId(userId);
+    if (!id) throw new Error('請貼上 U 開頭的 LINE userId。');
+    const current = await currentLineDoc();
+    const result = addLineSubscriber(current, { userId: id, label });
+    if (!result.ok && result.reason === 'duplicate') throw new Error('這個 LINE userId 已經綁定。');
+    if (!result.ok) throw new Error('請貼上 U 開頭的 LINE userId。');
+    return storeLineDoc(result.doc);
+  });
+}
+
+export function removeLineSubscriberBinding(userId) {
+  return guard(async () => {
+    const current = await currentLineDoc();
+    return storeLineDoc(removeLineSubscriber(current, userId));
+  });
+}
+
+export function setLineRemindersEnabled(enabled) {
+  return guard(async () => {
+    const current = await currentLineDoc();
+    return storeLineDoc(setLineEnabled(current, enabled));
   });
 }
 

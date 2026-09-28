@@ -9,6 +9,10 @@ import {
   importLocalPantry,
   joinFolder,
   listEditors,
+  loadLineBinding,
+  removeLineSubscriberBinding,
+  saveLineSubscriber,
+  setLineRemindersEnabled,
   shareFolder,
   unshareEditor,
   signInGoogle,
@@ -17,6 +21,8 @@ import {
   switchHousehold,
   syncNow,
 } from './session.js';
+import { readLinePublicConfig } from './line-config.js';
+import { emptyLineSubscribers } from './line-subscribers.js';
 import { reauthCopy } from './auth-restore.js';
 import { roleLabel, syncDetailMessage, syncStatusLabel } from './sync.js';
 import {
@@ -376,7 +382,10 @@ function renderAccount(account = getSessionStatus()) {
   const detail = account.syncing ? '' : syncDetailMessage(account.message);
   ui.accountDetail.hidden = !detail;
   ui.accountDetail.textContent = detail;
-  if (ui.moreDialog?.open) scheduleEditors();
+  if (ui.moreDialog?.open) {
+    scheduleEditors();
+    scheduleLine();
+  }
   const signature = `${account.households.map((row) => `${row.id}:${row.role}:${row.name}`).join('|')}:${account.activeHouseholdId || ''}`;
   if (ui.householdSelect.dataset.signature !== signature) {
     ui.householdSelect.dataset.signature = signature;
@@ -844,6 +853,138 @@ async function loadEditors() {
   }
 }
 
+let lineDoc = emptyLineSubscribers();
+let lineKey = '';
+let lineTicket = 0;
+
+function linePublic() {
+  return readLinePublicConfig(import.meta.env);
+}
+
+function paintLineFriends() {
+  const pub = linePublic();
+  if (pub.addFriendReady) {
+    ui.lineAddFriend.hidden = false;
+    ui.lineAddFriend.href = pub.addFriendUrl;
+    ui.lineAddFriend.textContent = `加「${pub.botName}」為好友`;
+    ui.lineFriend.textContent = `請先加「${pub.botName}」為好友，再把 LINE 的 userId 貼在下面。家人各自加好友、各自收。`;
+    return;
+  }
+  ui.lineAddFriend.hidden = true;
+  ui.lineAddFriend.removeAttribute('href');
+  ui.lineFriend.textContent = `尚未設定 LINE 官方帳號「${pub.botName}」。頻道建立後，建置時放入加好友連結，這裡才會出現加好友。沒有設定時，這個畫面仍可使用。`;
+}
+
+function paintLineDoc(doc) {
+  lineDoc = doc;
+  ui.lineEnable.setAttribute('aria-checked', doc.enabled ? 'true' : 'false');
+  const rows = doc.subscribers;
+  ui.lineList.hidden = rows.length === 0;
+  ui.lineList.replaceChildren(...rows.map((row) => {
+    const who = row.label ? `${row.label} · ${row.userId.slice(0, 6)}…${row.userId.slice(-4)}` : row.userId;
+    return el('li', { class: 'editor-row' }, [
+      el('span', { class: 'editor-mail' }, who),
+      el('button', {
+        type: 'button',
+        class: 'line-remove',
+        'data-line-user': row.userId,
+      }, '移除'),
+    ]);
+  }));
+  const bound = rows.length
+    ? `已綁定 ${rows.length} 個 LINE。開關打開後，Worker 設定完成才會推播。`
+    : '還沒有綁定。貼上 userId 後會存在目前的雲端硬碟資料夾。';
+  ui.lineState.textContent = `${bound}瀏覽器通知不受影響。`;
+}
+
+function scheduleLine(force = false) {
+  if (!ui.moreDialog.open) return;
+  const account = getSessionStatus();
+  const key = `${account.configured}:${account.user?.email || ''}:${account.needsReauth}:${account.activeHouseholdId || ''}`;
+  if (!force && key === lineKey) return;
+  lineKey = key;
+  void refreshLinePanel();
+}
+
+async function refreshLinePanel() {
+  const ticket = ++lineTicket;
+  const account = getSessionStatus();
+  paintLineFriends();
+  const remembered = Boolean(account.configured && account.user);
+  const authorized = remembered && !account.needsReauth;
+  const hasFolder = Boolean(account.activeHouseholdId);
+  ui.lineEnable.disabled = !authorized || !hasFolder;
+  ui.lineBind.hidden = !authorized || !hasFolder;
+  if (!authorized || !hasFolder) {
+    paintLineDoc(emptyLineSubscribers());
+    ui.lineEnable.setAttribute('aria-checked', 'false');
+  }
+  if (!account.configured) {
+    ui.lineState.textContent = '請先設定 Google 登入並選擇資料夾。綁定會存在雲端硬碟資料夾。瀏覽器通知仍可使用。';
+    return;
+  }
+  if (!remembered) {
+    ui.lineState.textContent = '請先登入並選擇資料夾。綁定會存在這個雲端硬碟資料夾。瀏覽器通知仍可使用。';
+    return;
+  }
+  if (account.needsReauth) {
+    ui.lineState.textContent = '請再按一次「使用 Google 登入」，才能讀寫 LINE 綁定。瀏覽器通知仍可使用。';
+    return;
+  }
+  if (!hasFolder) {
+    ui.lineState.textContent = '還沒有資料夾。建立或加入後，才能把 LINE userId 存在這個資料夾。';
+    return;
+  }
+  ui.lineState.textContent = '正在讀取 LINE 綁定…';
+  try {
+    const doc = await loadLineBinding();
+    if (ticket !== lineTicket) return;
+    paintLineDoc(doc);
+  } catch (error) {
+    if (ticket !== lineTicket) return;
+    ui.lineState.textContent = error.message || '讀不到 LINE 綁定。';
+  }
+}
+
+async function onLineSwitch() {
+  if (ui.lineEnable.disabled) {
+    toast(ui.lineState.textContent);
+    return;
+  }
+  try {
+    const doc = await setLineRemindersEnabled(!lineDoc.enabled);
+    paintLineDoc(doc);
+    toast(doc.enabled ? '已開啟 LINE 提醒。頻道設定完成後才會推播。' : '已關閉 LINE 提醒。瀏覽器通知不受影響。');
+  } catch (error) {
+    toast(error.message);
+  }
+}
+
+async function saveLineUser() {
+  try {
+    const doc = await saveLineSubscriber({
+      userId: ui.lineUserId.value,
+      label: ui.lineLabel.value,
+    });
+    ui.lineUserId.value = '';
+    ui.lineLabel.value = '';
+    paintLineDoc(doc);
+    toast('已綁定這個 LINE userId');
+  } catch (error) {
+    toast(error.message);
+  }
+}
+
+async function removeLineUser(userId) {
+  try {
+    const doc = await removeLineSubscriberBinding(userId);
+    paintLineDoc(doc);
+    toast('已移除 LINE 綁定');
+  } catch (error) {
+    toast(error.message);
+  }
+}
+
 async function removeEditor(permissionId, email) {
   const who = email || '這個帳號';
   const ok = await ask(`取消與「${who}」共用這個資料夾？`, '取消分享', '取消分享');
@@ -956,9 +1097,11 @@ function bind() {
   ui.moreBtn.addEventListener('click', () => {
     refreshNotifyCopy();
     editorsKey = '';
+    lineKey = '';
     ui.moreDialog.showModal();
     syncModal();
     scheduleEditors(true);
+    scheduleLine(true);
   });
   ui.moreClose.addEventListener('click', () => {
     ui.moreDialog.close();
@@ -966,6 +1109,13 @@ function bind() {
   });
   ui.moreDialog.addEventListener('close', syncModal);
   ui.enableNotify.addEventListener('click', onNotifySwitch);
+  ui.lineEnable.addEventListener('click', onLineSwitch);
+  ui.lineSave.addEventListener('click', saveLineUser);
+  ui.lineList.addEventListener('click', (event) => {
+    const button = event.target.closest('.line-remove');
+    if (!button) return;
+    removeLineUser(button.dataset.lineUser);
+  });
   ui.editorList.addEventListener('click', (event) => {
     const button = event.target.closest('.editor-remove');
     if (!button) return;
@@ -1093,6 +1243,15 @@ function cacheElements() {
     moreClose: 'more-close',
     enableNotify: 'enable-notify',
     notifyState: 'notify-state',
+    lineEnable: 'line-enable',
+    lineState: 'line-state',
+    lineFriend: 'line-friend',
+    lineAddFriend: 'line-add-friend',
+    lineList: 'line-list',
+    lineBind: 'line-bind',
+    lineUserId: 'line-user-id',
+    lineLabel: 'line-label',
+    lineSave: 'line-save',
     exportBtn: 'export-btn',
     importBtn: 'import-btn',
     importInput: 'import-input',

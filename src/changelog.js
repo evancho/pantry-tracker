@@ -1,6 +1,17 @@
 /** Newest release first. Version numbers match package.json, without the build datecode. */
 export const CHANGELOG = Object.freeze([
   {
+    version: '2.1.7',
+    date: '2026-09-28',
+    summary: 'LINE 提醒先接上骨架，頻道 token 稍後再設定。',
+    changes: Object.freeze([
+      '「更多」新增 LINE 提醒：開關、加好友狀態，以及貼上 userId 綁定。',
+      '已綁定的 LINE userId 存在目前雲端硬碟資料夾的 line-subscribers.json。家人各自加好友、各自收。',
+      'Cloudflare Worker 會定時讀食材並呼叫 LINE push。沒有 token 時會略過，App 與 Worker 不會因此停止。',
+      '瀏覽器通知仍可使用。LINE「生活提醒」要等頻道設定完成才會送出。',
+    ]),
+  },
+  {
     version: '2.1.6',
     date: '2026-09-28',
     summary: '關掉再開仍記得 Google 帳號，再按一次即可登入。',

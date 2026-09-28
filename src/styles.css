@@ -990,6 +990,16 @@ dialog.sheet::backdrop { background: rgba(28, 25, 21, 0.48); }
 
 .switch:disabled { opacity: 0.45; }
 
+.line-fields {
+  display: grid;
+  gap: 12px;
+}
+
+.line-link {
+  color: var(--green-deep);
+  font-weight: 750;
+}
+
 .editor-list {
   list-style: none;
   margin: 0;

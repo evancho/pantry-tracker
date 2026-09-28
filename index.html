@@ -234,6 +234,30 @@
           </div>
           <p id="notify-state" class="hint">打開食材櫃時，通知即將到期或已過期的食材。</p>
         </section>
+        <section id="line-card" class="more-block">
+          <div class="more-head">
+            <h3>LINE 提醒</h3>
+            <button type="button" id="line-enable" class="switch" role="switch" aria-checked="false" aria-label="LINE 提醒">
+              <span class="switch-track" aria-hidden="true"></span>
+            </button>
+          </div>
+          <p class="hint">瀏覽器通知仍可用。LINE「生活提醒」要等頻道設定 Channel access token 後才會推播。</p>
+          <p id="line-state" class="hint">請先登入並選擇資料夾。綁定會存在這個雲端硬碟資料夾。</p>
+          <p id="line-friend" class="hint">尚未設定 LINE 官方帳號。頻道建立後才會出現加好友。</p>
+          <a id="line-add-friend" class="line-link" href="" target="_blank" rel="noopener noreferrer" hidden>加「生活提醒」為好友</a>
+          <ul id="line-list" class="editor-list" hidden></ul>
+          <div id="line-bind" class="line-fields" hidden>
+            <label class="field">
+              <span>LINE userId</span>
+              <input id="line-user-id" autocomplete="off" spellcheck="false" placeholder="貼上 U 開頭的 userId" />
+            </label>
+            <label class="field">
+              <span>稱呼（選填）</span>
+              <input id="line-label" maxlength="20" placeholder="例如：媽媽" />
+            </label>
+            <button type="button" id="line-save" class="btn btn-primary">綁定這個 userId</button>
+          </div>
+        </section>
         <section class="more-block">
           <div class="more-head">
             <h3>備份</h3>

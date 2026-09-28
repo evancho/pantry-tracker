@@ -1,4 +1,5 @@
 import { driveErrorMessage, readDriveConfig } from './drive-config.js';
+import { LINE_SUBSCRIBERS_FILE } from './line-config.js';
 
 const SCOPE = 'https://www.googleapis.com/auth/drive';
 const GIS_SRC = 'https://accounts.google.com/gsi/client';
@@ -321,6 +322,31 @@ export async function writeRemoteItem(folderId, item) {
     parents: [folderId],
     mediaType: 'application/json',
     media: payload,
+  });
+  return created.id;
+}
+
+export async function readLineSubscribersFile(folderId) {
+  const fileId = await findNamedFile(folderId, LINE_SUBSCRIBERS_FILE);
+  if (!fileId) return '';
+  const response = await driveFetch(`https://www.googleapis.com/drive/v3/files/${fileId}?alt=media`, {
+    headers: authHeader(),
+  });
+  return response.text();
+}
+
+export async function writeLineSubscribersFile(folderId, text) {
+  const fileId = await findNamedFile(folderId, LINE_SUBSCRIBERS_FILE);
+  if (fileId) {
+    await updateMedia(fileId, 'application/json', text);
+    return fileId;
+  }
+  const created = await createFile({
+    name: LINE_SUBSCRIBERS_FILE,
+    mimeType: 'application/json',
+    parents: [folderId],
+    mediaType: 'application/json',
+    media: text,
   });
   return created.id;
 }
