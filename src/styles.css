@@ -59,17 +59,32 @@ button { cursor: pointer; }
 }
 
 .update-banner {
-  background: var(--green-deep);
+  background: #8a4e10;
   color: white;
 }
 
+.update-banner-inner {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 10px 16px;
+}
+
+.update-banner p {
+  margin: 0;
+  font-weight: 800;
+}
+
 .update-banner button {
-  width: 100%;
-  min-height: 52px;
+  flex: 0 0 auto;
+  min-height: 44px;
   border: 0;
-  background: transparent;
-  color: white;
-  font-weight: 700;
+  border-radius: 999px;
+  padding: 0 16px;
+  background: white;
+  color: #6a3e12;
+  font-weight: 800;
 }
 
 .topbar {
@@ -118,7 +133,6 @@ button { cursor: pointer; }
 
 .icon-btn,
 .tab,
-.chip,
 .btn,
 .fab,
 .text-btn {
@@ -182,41 +196,25 @@ button { cursor: pointer; }
   padding: 14px 0 6px;
 }
 
-.filter-label,
+.search-field > label,
 .sort-field span {
+  display: block;
   margin: 0 0 6px;
   color: var(--muted);
   font-size: 0.85rem;
   font-weight: 700;
 }
 
-.chip-row {
+.search-row {
   display: flex;
+  align-items: center;
   gap: 8px;
-  overflow-x: auto;
-  padding-bottom: 2px;
-  scrollbar-width: none;
-}
-
-.chip-row::-webkit-scrollbar { display: none; }
-
-.chip {
-  flex: 0 0 auto;
-  border: 1px solid var(--line);
-  background: var(--surface);
-  border-radius: 999px;
-  padding: 0 14px;
-}
-
-.chip[aria-pressed="true"] {
-  background: var(--green);
-  border-color: var(--green);
-  color: white;
 }
 
 .sort-field { display: block; }
 
 .sort-field select,
+.search-row input,
 .field input,
 .field select {
   width: 100%;
@@ -228,8 +226,20 @@ button { cursor: pointer; }
   font-size: 16px;
 }
 
+.search-row input {
+  flex: 1;
+  width: auto;
+  min-width: 0;
+  font-weight: 500;
+}
+
+.search-row input::-webkit-search-cancel-button {
+  appearance: none;
+}
+
 .list {
   display: grid;
+  grid-template-columns: minmax(0, 1fr);
   gap: 12px;
   padding: 12px 0 8px;
 }
@@ -317,7 +327,8 @@ button { cursor: pointer; }
 }
 
 .card-actions button {
-  flex: 1;
+  flex: 1 1 0;
+  max-width: 220px;
   min-height: 44px;
 }
 
@@ -375,6 +386,87 @@ body.modal-open .fab { visibility: hidden; }
   text-align: center;
   font-size: 0.88rem;
 }
+
+.version-link {
+  border: 0;
+  background: transparent;
+  color: var(--green);
+  font-weight: 700;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+  min-height: 44px;
+  padding: 8px 12px;
+}
+
+.changelog { padding: 8px 0 12px; }
+
+.changelog-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 0 4px;
+}
+
+.changelog-head h2 { margin: 0; font-size: 1.35rem; }
+
+.release {
+  margin: 12px 0 0;
+  padding: 16px;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+}
+
+.release-current { border-color: #8fbfa8; }
+
+.release-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+
+.release-head h3 { margin: 0; font-size: 1.15rem; }
+
+.release-head time { color: var(--muted); font-size: 0.92rem; }
+
+.release-summary { margin: 8px 0 0; font-weight: 650; }
+
+.release ul { margin: 8px 0 0; padding-left: 1.2rem; }
+
+.release li + li { margin-top: 4px; }
+
+dialog.update-dialog {
+  border: 0;
+  width: min(440px, calc(100% - 32px));
+  margin: auto;
+  padding: 22px 18px 16px;
+  border-radius: 22px;
+  color: inherit;
+  background: var(--surface);
+  box-shadow: var(--shadow);
+}
+
+dialog.update-dialog::backdrop { background: rgba(28, 25, 21, 0.62); }
+
+.update-kicker {
+  margin: 0 0 4px;
+  color: var(--amber);
+  font-size: 0.85rem;
+  font-weight: 800;
+}
+
+dialog.update-dialog h2 { margin: 0 0 8px; font-size: 1.45rem; }
+
+dialog.update-dialog p { margin: 0; }
+
+.update-actions {
+  display: grid;
+  gap: 8px;
+  margin-top: 16px;
+}
+
+.update-actions .btn { width: 100%; min-height: 52px; }
 
 dialog.sheet {
   border: 0;
@@ -521,10 +613,6 @@ dialog.sheet-confirm {
   max-height: none;
   margin: auto;
   border-radius: 22px;
-}
-
-@media (min-width: 840px) {
-  .list { grid-template-columns: 1fr 1fr; }
 }
 
 @media (prefers-reduced-motion: reduce) {

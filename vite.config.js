@@ -1,5 +1,7 @@
+import { readFileSync } from 'node:fs';
 import { defineConfig } from 'vite';
 import { VitePWA } from 'vite-plugin-pwa';
+import { formatVersionLabel, taipeiDatecode } from './scripts/version-label.mjs';
 
 function normalizeBase(input) {
   if (!input || input === '/') return '/';
@@ -8,10 +10,28 @@ function normalizeBase(input) {
 }
 
 const base = normalizeBase(process.env.BASE_PATH);
+const pkg = JSON.parse(readFileSync(new URL('./package.json', import.meta.url), 'utf8'));
+const appVersion = pkg.version;
+const appDatecode = process.env.APP_DATECODE || taipeiDatecode();
+const appVersionLabel = formatVersionLabel(appVersion, appDatecode);
+
+function appVersionHtml() {
+  return {
+    name: 'app-version-html',
+    transformIndexHtml(html) {
+      return html.replaceAll('__APP_VERSION_LABEL__', appVersionLabel);
+    },
+  };
+}
 
 export default defineConfig({
   base,
+  define: {
+    __APP_VERSION__: JSON.stringify(appVersion),
+    __APP_DATECODE__: JSON.stringify(appDatecode),
+  },
   plugins: [
+    appVersionHtml(),
     VitePWA({
       registerType: 'prompt',
       injectRegister: false,

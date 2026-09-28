@@ -1,9 +1,9 @@
 import { buildBackup, parseBackup } from './backup.js';
+import { CHANGELOG } from './changelog.js';
 import { deleteItem, loadAll, saveItem } from './db.js';
 import {
   AREAS,
   SORTS,
-  STATUS_FILTERS,
   countdownLabel,
   daysUntilExpiry,
   defaultLeadDays,
@@ -17,6 +17,7 @@ import {
   summaryText,
   todayISO,
 } from './domain.js';
+import { APP_VERSION, APP_VERSION_LABEL } from './version.js';
 import { compressImage } from './images.js';
 import {
   checkReminders,
@@ -40,11 +41,12 @@ const state = {
   items: [],
   ready: false,
   error: '',
-  filterArea: '全部',
-  filterStatus: '全部',
+  query: '',
   sort: 'expiry-asc',
   view: 'pantry',
 };
+
+let viewBeforeChangelog = 'pantry';
 
 const urls = new Map();
 let draft = null;
@@ -100,8 +102,6 @@ function syncModal() {
 function loadView() {
   try {
     const saved = JSON.parse(localStorage.getItem(VIEW_KEY) || '{}');
-    if (saved.area === '全部' || AREAS.includes(saved.area)) state.filterArea = saved.area;
-    if (STATUS_FILTERS.includes(saved.status)) state.filterStatus = saved.status;
     if (SORTS.some((option) => option.id === saved.sort)) state.sort = saved.sort;
   } catch {
     // Ignore a broken preference and use the defaults.
@@ -109,11 +109,7 @@ function loadView() {
 }
 
 function saveView() {
-  localStorage.setItem(VIEW_KEY, JSON.stringify({
-    area: state.filterArea,
-    status: state.filterStatus,
-    sort: state.sort,
-  }));
+  localStorage.setItem(VIEW_KEY, JSON.stringify({ sort: state.sort }));
 }
 
 function urlFor(item) {
@@ -193,17 +189,33 @@ function renderCard(item, today) {
   ]);
 }
 
-function renderFilters(counts) {
-  for (const button of ui.areaFilters.querySelectorAll('button')) {
-    button.setAttribute('aria-pressed', String(button.dataset.area === state.filterArea));
-  }
-  for (const button of ui.statusFilters.querySelectorAll('button')) {
-    const status = button.dataset.status;
-    button.setAttribute('aria-pressed', String(status === state.filterStatus));
-    const count = status !== '全部' ? counts[status] : 0;
-    button.textContent = count ? `${status} ${count}` : status;
-  }
+function renderControls() {
+  if (ui.nameFilter.value !== state.query) ui.nameFilter.value = state.query;
+  ui.nameFilterClear.hidden = state.query.trim() === '';
   ui.sort.value = state.sort;
+}
+
+function applyVersion() {
+  const label = `食材櫃 · ${APP_VERSION_LABEL}`;
+  ui.versionBtn.textContent = label;
+  ui.versionBtn.setAttribute('aria-label', `查看更新紀錄，目前版本 ${APP_VERSION_LABEL}`);
+  ui.versionNote.textContent = `${label} · 資料只存在這台裝置`;
+}
+
+function renderChangelog() {
+  ui.changelogCurrent.textContent = `目前版本 ${APP_VERSION_LABEL}`;
+  ui.changelogList.replaceChildren(...CHANGELOG.map((entry) => {
+    const current = entry.version === APP_VERSION;
+    return el('article', { class: current ? 'release release-current' : 'release' }, [
+      el('header', { class: 'release-head' }, [
+        el('h3', {}, `v${entry.version}`),
+        current ? el('span', { class: 'badge badge-ok' }, '目前版本') : null,
+        el('time', { datetime: entry.date }, formatDate(entry.date)),
+      ]),
+      el('p', { class: 'release-summary' }, entry.summary),
+      el('ul', {}, entry.changes.map((line) => el('li', {}, line))),
+    ]);
+  }));
 }
 
 function showEmpty(title, copy) {
@@ -216,12 +228,11 @@ function render() {
   const today = todayISO();
   const counts = summarize(state.items, today);
   ui.summary.textContent = state.error ? '無法讀取資料' : summaryText(counts);
-  renderFilters(counts);
+  renderControls();
   ui.notifyBtn.classList.toggle('has-due', counts['即將到期'] + counts['已過期'] > 0);
 
   const visible = filterAndSort(state.items, {
-    area: state.filterArea,
-    status: state.filterStatus,
+    query: state.query,
     sort: state.sort,
     today,
   });
@@ -241,6 +252,10 @@ function render() {
   } else if (visible.length === 0) {
     ui.empty.hidden = true;
     ui.noMatch.hidden = false;
+    const query = state.query.trim();
+    ui.noMatchCopy.textContent = query
+      ? `沒有名稱包含「${query}」的食材。可以改搜尋字，或清除後看全部。`
+      : '沒有符合的食材。';
   } else {
     ui.empty.hidden = true;
     ui.noMatch.hidden = true;
@@ -260,17 +275,24 @@ async function reload() {
 
 function setView(view) {
   state.view = view;
-  const pantry = view === 'pantry';
-  ui.pantry.hidden = !pantry;
-  ui.recipes.hidden = pantry;
-  ui.addBtn.hidden = !pantry;
-  if (pantry) {
-    ui.tabPantry.setAttribute('aria-current', 'page');
-    ui.tabRecipes.removeAttribute('aria-current');
-  } else {
-    ui.tabRecipes.setAttribute('aria-current', 'page');
-    ui.tabPantry.removeAttribute('aria-current');
+  ui.pantry.hidden = view !== 'pantry';
+  ui.recipes.hidden = view !== 'recipes';
+  ui.changelog.hidden = view !== 'changelog';
+  ui.addBtn.hidden = view !== 'pantry';
+  if (view === 'pantry') ui.tabPantry.setAttribute('aria-current', 'page');
+  else ui.tabPantry.removeAttribute('aria-current');
+  if (view === 'recipes') ui.tabRecipes.setAttribute('aria-current', 'page');
+  else ui.tabRecipes.removeAttribute('aria-current');
+  window.scrollTo(0, 0);
+}
+
+function openChangelog() {
+  if (state.view !== 'changelog') viewBeforeChangelog = state.view;
+  if (ui.moreDialog.open) {
+    ui.moreDialog.close();
+    syncModal();
   }
+  setView('changelog');
 }
 
 function updateLeadHint() {
@@ -601,41 +623,26 @@ async function enableNotifications() {
 }
 
 function bind() {
-  for (const area of ['全部', ...AREAS]) {
-    ui.areaFilters.append(el('button', {
-      type: 'button',
-      class: 'chip',
-      'data-area': area,
-      'aria-pressed': String(area === state.filterArea),
-    }, area));
-  }
-  for (const status of STATUS_FILTERS) {
-    ui.statusFilters.append(el('button', {
-      type: 'button',
-      class: 'chip',
-      'data-status': status,
-      'aria-pressed': String(status === state.filterStatus),
-    }, status));
-  }
   for (const option of SORTS) {
     ui.sort.append(el('option', { value: option.id }, option.label));
   }
   ui.sort.value = state.sort;
   for (const area of AREAS) ui.area.append(el('option', { value: area }, area));
 
-  ui.areaFilters.addEventListener('click', (event) => {
-    const button = event.target.closest('button[data-area]');
-    if (!button) return;
-    state.filterArea = button.dataset.area;
-    saveView();
+  ui.nameFilter.addEventListener('input', () => {
+    state.query = ui.nameFilter.value;
     render();
   });
-  ui.statusFilters.addEventListener('click', (event) => {
-    const button = event.target.closest('button[data-status]');
-    if (!button) return;
-    state.filterStatus = button.dataset.status;
-    saveView();
+  ui.nameFilter.addEventListener('keydown', (event) => {
+    if (event.key !== 'Enter') return;
+    event.preventDefault();
+    ui.nameFilter.blur();
+  });
+  ui.nameFilterClear.addEventListener('click', () => {
+    state.query = '';
+    ui.nameFilter.value = '';
     render();
+    ui.nameFilter.focus();
   });
   ui.sort.addEventListener('change', () => {
     state.sort = ui.sort.value;
@@ -645,6 +652,9 @@ function bind() {
 
   ui.tabPantry.addEventListener('click', () => setView('pantry'));
   ui.tabRecipes.addEventListener('click', () => setView('recipes'));
+  ui.versionBtn.addEventListener('click', openChangelog);
+  ui.openChangelog.addEventListener('click', openChangelog);
+  ui.changelogBack.addEventListener('click', () => setView(viewBeforeChangelog));
   ui.addBtn.addEventListener('click', () => openEditor(null));
   ui.editorClose.addEventListener('click', closeEditor);
   ui.editorCancel.addEventListener('click', closeEditor);
@@ -722,14 +732,22 @@ function cacheElements() {
     tabRecipes: 'tab-recipes',
     pantry: 'view-pantry',
     recipes: 'view-recipes',
-    areaFilters: 'area-filters',
-    statusFilters: 'status-filters',
+    nameFilter: 'name-filter',
+    nameFilterClear: 'name-filter-clear',
     sort: 'sort',
     list: 'list',
     empty: 'empty',
     emptyTitle: 'empty-title',
     emptyCopy: 'empty-copy',
     noMatch: 'no-match',
+    noMatchCopy: 'no-match-copy',
+    changelog: 'view-changelog',
+    changelogBack: 'changelog-back',
+    changelogCurrent: 'changelog-current',
+    changelogList: 'changelog-list',
+    versionBtn: 'version-btn',
+    versionNote: 'version-note',
+    openChangelog: 'open-changelog',
     addBtn: 'add-btn',
     editor: 'editor',
     editorForm: 'editor-form',
@@ -771,6 +789,8 @@ export function startApp() {
   cacheElements();
   loadView();
   bind();
+  applyVersion();
+  renderChangelog();
   setView('pantry');
   render();
   reload().catch((error) => {
