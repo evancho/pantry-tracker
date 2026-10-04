@@ -1,6 +1,15 @@
 /** Newest release first. Version numbers match package.json, without the build datecode. */
 export const CHANGELOG = Object.freeze([
   {
+    version: '2.1.8',
+    date: '2026-10-04',
+    summary: '刪除或修改食材後，同步不會再用雲端的舊資料蓋回來。',
+    changes: Object.freeze([
+      '確認刪除後，共用資料夾會留下較新的刪除紀錄。下次同步、重新開啟，或其他裝置拉下時，這筆食材不會再出現。',
+      '確認修改後，較新的內容會上傳。較舊的雲端副本不會蓋過這台裝置，其他裝置拉下時會看到這次修改。',
+    ]),
+  },
+  {
     version: '2.1.7',
     date: '2026-09-28',
     summary: 'LINE 提醒先接上骨架，頻道 token 稍後再設定。',
