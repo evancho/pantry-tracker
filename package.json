@@ -1,6 +1,6 @@
 {
   "name": "pantry-tracker",
-  "version": "2.1.7",
+  "version": "2.1.8",
   "private": true,
   "description": "食材櫃 — offline-first Traditional Chinese pantry tracker PWA with optional Google Drive household sync",
   "type": "module",

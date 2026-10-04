@@ -1,4 +1,4 @@
-import { itemsInScope } from './sync.js';
+import { itemsInScope, prepareStoredItem } from './sync.js';
 
 const DB_NAME = 'pantry-tracker';
 const DB_VERSION = 2;
@@ -89,16 +89,18 @@ export async function listOutbox() {
 export async function saveItem(item, photoBlob, { queue = true } = {}) {
   const db = await openDb();
   const existing = await requestToPromise(db.transaction('items').objectStore('items').get(item.id));
-  const stored = toStoredItem(item);
+  const prepared = prepareStoredItem(existing, item, { queue });
+  if (prepared.action === 'keep') return existing;
+  const stored = toStoredItem(prepared.item);
   const tx = db.transaction(['items', 'photos', 'outbox'], 'readwrite');
   const photos = tx.objectStore('photos');
 
-  if (photoBlob instanceof Blob) {
+  if (prepared.action === 'write' && photoBlob instanceof Blob) {
     const photoId = stored.photoId || existing?.photoId || crypto.randomUUID();
     stored.photoId = photoId;
     photos.put({ id: photoId, blob: photoBlob });
     if (existing?.photoId && existing.photoId !== photoId) photos.delete(existing.photoId);
-  } else if (photoBlob === null) {
+  } else if (prepared.action === 'write' && photoBlob === null) {
     const previous = stored.photoId || existing?.photoId;
     if (previous) photos.delete(previous);
     stored.photoId = null;
@@ -107,7 +109,7 @@ export async function saveItem(item, photoBlob, { queue = true } = {}) {
   }
 
   tx.objectStore('items').put(stored);
-  if (queue && stored.householdId) {
+  if (queue && prepared.action === 'write' && stored.householdId) {
     tx.objectStore('outbox').put({
       key: outboxKey(stored.householdId, stored.id),
       id: stored.id,

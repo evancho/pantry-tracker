@@ -1,6 +1,7 @@
 import { ackOutbox, deleteItem, listOutbox, loadAll, saveItem } from './db.js';
 import {
   createPantryFolder,
+  deleteDriveFile,
   deletePhotoFile,
   downloadPhotoFile,
   driveConfigured,
@@ -30,7 +31,7 @@ import {
   setLineEnabled,
 } from './line-subscribers.js';
 import { buttonAuthSteps, isUserCancel, reauthCopy, silentAuthPrompt } from './auth-restore.js';
-import { driveFolderLink, mergeHouseholdItems, migrationCandidates, parseDriveFolderId, scopeForList } from './sync.js';
+import { driveFolderLink, migrationCandidates, parseDriveFolderId, reconcileHousehold, scopeForList } from './sync.js';
 
 const SKIP_PREFIX = 'pantry-tracker-skip-import:';
 const USER_KEY = 'pantry-tracker-google-user';
@@ -146,19 +147,21 @@ export function startSession({ onStatus: statusHandler, onSynced: syncedHandler 
     return;
   }
   started = true;
-  window.addEventListener('online', () => {
-    if (!status.user) return;
-    requestGoogleAccess({ prompt: silentAuthPrompt(), hint: status.user.email || '' })
-      .then(() => {
-        status.needsReauth = false;
-        return syncNow();
-      })
-      .catch(() => {
-        keepRememberedAccount(status.user);
-        emit();
-        onSynced();
-      });
-  });
+  if (typeof window !== 'undefined') {
+    window.addEventListener('online', () => {
+      if (!status.user) return;
+      requestGoogleAccess({ prompt: silentAuthPrompt(), hint: status.user.email || '' })
+        .then(() => {
+          status.needsReauth = false;
+          return syncNow();
+        })
+        .catch(() => {
+          keepRememberedAccount(status.user);
+          emit();
+          onSynced();
+        });
+    });
+  }
   const remembered = readRememberedUser();
   if (!remembered) {
     emit();
@@ -400,6 +403,104 @@ export function importLocalPantry() {
   });
 }
 
+async function outboxFor(householdId) {
+  return (await listOutbox()).filter((row) => row.householdId === householdId);
+}
+
+async function outboxRow(householdId, id) {
+  const rows = await outboxFor(householdId);
+  return rows.find((row) => row.id === id) || null;
+}
+
+async function ackIf(householdId, id, op, updatedAt) {
+  const row = await outboxRow(householdId, id);
+  if (!row || row.op !== op) return;
+  if (updatedAt != null && Number(row.updatedAt) > Number(updatedAt)) return;
+  await ackOutbox(row.key);
+}
+
+async function householdPlan(householdId, remoteItems) {
+  let localItems = await loadAll(householdId);
+  const pending = await outboxFor(householdId);
+  const staleEdit = pending.some((row) => {
+    if (row.op !== 'upsert') return false;
+    const local = localItems.find((item) => item.id === row.id);
+    return (Number(row.updatedAt) || 0) > (Number(local?.updatedAt) || 0);
+  });
+  if (staleEdit) localItems = await loadAll(householdId);
+  return reconcileHousehold({ localItems, remoteItems, pending });
+}
+
+function noteRemoteVersion(remoteItems, item, extra) {
+  const rest = remoteItems.filter((row) => row.id !== item.id);
+  rest.push({
+    id: item.id,
+    name: item.name || '',
+    expiry: item.expiry ?? null,
+    area: item.area || '冷藏',
+    leadDays: item.leadDays ?? 1,
+    photoId: item.photoId || null,
+    photoPath: extra.photoPath ?? null,
+    remoteFileId: extra.remoteFileId || item.remoteFileId || null,
+    householdId: extra.householdId || item.householdId || null,
+    createdAt: item.createdAt || extra.updatedAt || item.updatedAt,
+    updatedAt: extra.updatedAt ?? item.updatedAt,
+    deletedAt: extra.deletedAt ?? null,
+  });
+  return rest;
+}
+
+async function applyDrops(householdId, remoteItems) {
+  const seen = new Set();
+  for (let guard = 0; guard < 40; guard += 1) {
+    const plan = await householdPlan(householdId, remoteItems);
+    const id = plan.dropIds.find((rowId) => !seen.has(rowId));
+    if (!id) return;
+    seen.add(id);
+    const again = await householdPlan(householdId, remoteItems);
+    if (!again.dropIds.includes(id)) continue;
+    await deleteItem(id, { queue: false });
+  }
+}
+
+async function applyPulls(householdId, remoteItems) {
+  const seen = new Set();
+  for (let guard = 0; guard < 40; guard += 1) {
+    const plan = await householdPlan(householdId, remoteItems);
+    const item = plan.pull.find((row) => !seen.has(row.id));
+    if (!item) return;
+    seen.add(item.id);
+    const again = await householdPlan(householdId, remoteItems);
+    const still = again.pull.find((row) => row.id === item.id && Number(row.updatedAt) === Number(item.updatedAt));
+    if (!still) continue;
+    const pending = await outboxRow(householdId, still.id);
+    if (pending?.op === 'delete' && Number(pending.updatedAt) >= Number(still.updatedAt)) continue;
+    if (pending?.op === 'upsert' && Number(pending.updatedAt) > Number(still.updatedAt)) continue;
+    let photo;
+    if (still.photoPath) {
+      const bytes = await downloadPhotoFile(still.photoPath);
+      photo = new Blob([bytes], { type: 'image/jpeg' });
+    } else {
+      photo = null;
+    }
+    await saveItem({ ...still, householdId, deletedAt: null }, photo, { queue: false });
+  }
+}
+
+async function ackSettled(householdId, remoteItems) {
+  const plan = await householdPlan(householdId, remoteItems);
+  const tombstones = new Set(plan.tombstones.map((row) => row.id));
+  const pushing = new Set(plan.push.map((row) => row.id));
+  for (const entry of plan.ackUpserts) {
+    if (pushing.has(entry.id)) continue;
+    await ackIf(householdId, entry.id, 'upsert', entry.updatedAt);
+  }
+  for (const entry of plan.ackDeletes) {
+    if (tombstones.has(entry.id)) continue;
+    await ackIf(householdId, entry.id, 'delete', entry.updatedAt);
+  }
+}
+
 export async function syncNow() {
   if (!status.configured || !status.user || status.needsReauth || !status.activeHouseholdId || syncing || !navigator.onLine) return;
   const householdId = status.activeHouseholdId;
@@ -408,36 +509,29 @@ export async function syncNow() {
   emit();
   try {
     await ensureGoogleAccess({ prompt: '', hint: status.user?.email || '' });
-    const remote = await listRemoteItems(householdId);
-    const local = await loadAll(householdId);
-    const plan = mergeHouseholdItems(local, remote);
-    for (const id of plan.dropIds) await deleteItem(id, { queue: false });
-    for (const item of plan.items) {
-      const previous = local.find((row) => row.id === item.id);
-      if (previous && (Number(previous.updatedAt) || 0) >= (Number(item.updatedAt) || 0)) continue;
-      let photo;
-      if (item.photoPath) {
-        const bytes = await downloadPhotoFile(item.photoPath);
-        photo = new Blob([bytes], { type: 'image/jpeg' });
-      } else {
-        photo = null;
-      }
-      await saveItem({ ...item, householdId }, photo, { queue: false });
-    }
+    let remoteView = await listRemoteItems(householdId);
+    const initial = await householdPlan(householdId, remoteView);
+    const staleFileIds = initial.staleFileIds || [];
+    await applyDrops(householdId, remoteView);
+    await applyPulls(householdId, remoteView);
     const folder = status.households.find((row) => row.id === householdId);
     if (folder?.role === 'reader') {
+      await ackSettled(householdId, remoteView);
       status.message = '已從 Google 雲端硬碟更新。這個資料夾目前只能檢視，這裡的修改會留在這台裝置。';
       onSynced();
       return;
     }
-    const remoteById = new Map(remote.map((item) => [item.id, item]));
-    const fresh = await loadAll(householdId);
-    for (const item of fresh) {
-      const remoteItem = remoteById.get(item.id);
-      if (remoteItem && Number(remoteItem.updatedAt) >= Number(item.updatedAt)) {
-        await ackOutbox(`${householdId}:${item.id}`);
-        continue;
-      }
+    await ackSettled(householdId, remoteView);
+    const written = new Map();
+    const attempted = new Set();
+    for (let guard = 0; guard < 40; guard += 1) {
+      const plan = await householdPlan(householdId, remoteView);
+      const item = plan.push.find((row) => !attempted.has(`${row.id}:${Number(row.updatedAt) || 0}`));
+      if (!item) break;
+      attempted.add(`${item.id}:${Number(item.updatedAt) || 0}`);
+      const pending = await outboxRow(householdId, item.id);
+      if (pending?.op === 'delete' && Number(pending.updatedAt) >= Number(item.updatedAt)) continue;
+      if (pending?.op === 'upsert' && Number(pending.updatedAt) > Number(item.updatedAt)) continue;
       let photoPath = item.photoPath || null;
       if (item.photoBlob && item.photoId) {
         photoPath = await uploadPhotoFile(householdId, item.photoId, item.photoBlob);
@@ -445,33 +539,75 @@ export async function syncNow() {
         await deletePhotoFile(item.photoPath);
         photoPath = null;
       }
-      const remoteFileId = await writeRemoteItem(householdId, { ...item, photoPath, deletedAt: null });
-      if (photoPath !== item.photoPath || remoteFileId !== item.remoteFileId) {
-        await saveItem({ ...item, photoPath, remoteFileId, deletedAt: null }, undefined, { queue: false });
-      }
-      await ackOutbox(`${householdId}:${item.id}`);
-    }
-    const deletes = (await listOutbox()).filter((row) => row.householdId === householdId && row.op === 'delete');
-    for (const row of deletes) {
-      const remoteItem = remoteById.get(row.id);
-      if (remoteItem?.deletedAt && Number(remoteItem.updatedAt) >= Number(row.updatedAt)) {
-        await ackOutbox(row.key);
-        continue;
-      }
-      await writeRemoteItem(householdId, {
-        id: row.id,
-        remoteFileId: remoteItem?.remoteFileId || null,
-        name: '',
-        expiry: null,
-        area: '冷藏',
-        leadDays: 1,
-        photoPath: null,
-        createdAt: row.updatedAt,
-        updatedAt: row.updatedAt,
-        deletedAt: row.updatedAt,
+      const pendingAgain = await outboxRow(householdId, item.id);
+      if (pendingAgain?.op === 'delete' && Number(pendingAgain.updatedAt) >= Number(item.updatedAt)) continue;
+      if (pendingAgain?.op === 'upsert' && Number(pendingAgain.updatedAt) > Number(item.updatedAt)) continue;
+      const currentRow = (await loadAll(householdId)).find((row) => row.id === item.id);
+      if (!currentRow || Number(currentRow.updatedAt) !== Number(item.updatedAt)) continue;
+      const remoteFileId = await writeRemoteItem(householdId, {
+        ...currentRow,
+        photoPath,
+        remoteFileId: currentRow.remoteFileId || item.remoteFileId || null,
+        deletedAt: null,
       });
-      if (row.photoPath) await deletePhotoFile(row.photoPath);
-      await ackOutbox(row.key);
+      written.set(item.id, remoteFileId);
+      remoteView = noteRemoteVersion(remoteView, currentRow, {
+        remoteFileId,
+        photoPath,
+        updatedAt: currentRow.updatedAt,
+        deletedAt: null,
+        householdId,
+      });
+      await saveItem({
+        ...currentRow,
+        householdId,
+        photoPath,
+        remoteFileId,
+        deletedAt: null,
+      }, undefined, { queue: false });
+      await ackIf(householdId, item.id, 'upsert', currentRow.updatedAt);
+    }
+    const deleteAttempts = new Set();
+    for (let guard = 0; guard < 40; guard += 1) {
+      const plan = await householdPlan(householdId, remoteView);
+      const tombstone = plan.tombstones.find((row) => !deleteAttempts.has(`${row.id}:${row.updatedAt}`));
+      if (!tombstone) {
+        for (const entry of plan.ackDeletes) await ackIf(householdId, entry.id, 'delete', entry.updatedAt);
+        break;
+      }
+      deleteAttempts.add(`${tombstone.id}:${tombstone.updatedAt}`);
+      const current = await outboxRow(householdId, tombstone.id);
+      if (!current || current.op !== 'delete' || Number(current.updatedAt) !== Number(tombstone.updatedAt)) continue;
+      const latest = (await loadAll(householdId)).find((row) => row.id === current.id);
+      if (latest && Number(latest.updatedAt) > Number(current.updatedAt)) continue;
+      const remoteFileId = await writeRemoteItem(householdId, {
+        id: current.id,
+        remoteFileId: tombstone.remoteFileId || written.get(current.id) || null,
+        name: tombstone.name || '',
+        expiry: tombstone.expiry ?? null,
+        area: tombstone.area || '冷藏',
+        leadDays: tombstone.leadDays ?? 1,
+        photoPath: null,
+        createdAt: tombstone.createdAt || current.updatedAt,
+        updatedAt: current.updatedAt,
+        deletedAt: current.updatedAt,
+      });
+      const photoPath = current.photoPath || tombstone.photoPath;
+      if (photoPath) await deletePhotoFile(photoPath);
+      await deleteItem(current.id, { queue: false });
+      remoteView = noteRemoteVersion(remoteView, tombstone, {
+        remoteFileId,
+        photoPath: null,
+        updatedAt: current.updatedAt,
+        deletedAt: current.updatedAt,
+        householdId,
+      });
+      await ackIf(householdId, current.id, 'delete', current.updatedAt);
+    }
+    const keepFiles = new Set(written.values());
+    for (const fileId of staleFileIds) {
+      if (!fileId || keepFiles.has(fileId)) continue;
+      await deleteDriveFile(fileId);
     }
     status.message = '已與 Google 雲端硬碟同步';
     onSynced();

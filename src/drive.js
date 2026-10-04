@@ -375,7 +375,7 @@ export async function downloadPhotoFile(fileId) {
   return response.arrayBuffer();
 }
 
-export async function deletePhotoFile(fileId) {
+export async function deleteDriveFile(fileId) {
   if (!fileId) return;
   try {
     await driveFetch(`https://www.googleapis.com/drive/v3/files/${fileId}`, {
@@ -385,6 +385,10 @@ export async function deletePhotoFile(fileId) {
   } catch (error) {
     if (String(error.code) !== '404') throw error;
   }
+}
+
+export async function deletePhotoFile(fileId) {
+  await deleteDriveFile(fileId);
 }
 
 export function explainDriveError(error) {
